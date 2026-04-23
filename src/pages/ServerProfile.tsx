@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit } from "lucide-react";
+import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit, ShieldCheck } from "lucide-react";
 import { VoteDialog } from "@/components/VoteDialog";
 import { ServerRow } from "@/components/ServerCard";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { UserTags } from "@/components/UserTag";
 import { format, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -25,7 +27,7 @@ const ServerProfile = () => {
   const [params, setParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [server, setServer] = useState<(ServerRow & { long_description: string | null; website_url: string | null; discord_url: string | null }) | null>(null);
+  const [server, setServer] = useState<(ServerRow & { long_description: string | null; website_url: string | null; discord_url: string | null; owner_id: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -46,7 +48,6 @@ const ServerProfile = () => {
       const data = await api.servers.getBySlug(slug);
       if (data) {
         setServer(data as any);
-        document.title = `${data.name} — Conquer Top 100`;
         loadReviews(data.id);
         loadStats(data.id);
         api.servers.incrementVisits(data.id);
@@ -203,6 +204,16 @@ const ServerProfile = () => {
 
   return (
     <div className="container py-8 md:py-12">
+      <Helmet>
+        <title>{`${server.name} — Conquer Top 100`}</title>
+        <meta name="description" content={server.short_description} />
+        <meta property="og:title" content={`${server.name} — Conquer Top 100`} />
+        <meta property="og:description" content={server.short_description} />
+        {server.banner_url && <meta property="og:image" content={server.banner_url} />}
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
+
       <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="h-4 w-4" /> Back to Top 100
       </Link>
@@ -227,7 +238,12 @@ const ServerProfile = () => {
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Conquer Online server</span>
                 <span className={`pulse-dot ${server.is_online ? "bg-emerald-400" : "bg-muted-foreground"}`} />
               </div>
-              <h1 className="font-display text-3xl md:text-5xl font-bold text-gradient">{server.name}</h1>
+              <div className="flex items-center gap-2.5">
+                <h1 className="font-display text-3xl md:text-5xl font-bold text-gradient">{server.name}</h1>
+                {server.is_verified && (
+                  <ShieldCheck className="h-6 w-6 md:h-8 md:w-8 text-primary-glow shrink-0" title="Verified Server" />
+                )}
+              </div>
               <p className="text-muted-foreground mt-1">{server.short_description}</p>
             </div>
             <div className="flex flex-col items-stretch md:items-end gap-2">
@@ -449,12 +465,15 @@ const ServerProfile = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-2 mb-2">
                         <div>
-                          <div className="font-bold text-foreground">
-                            {review.display_name || review.username || "Anonymous"}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-bold text-foreground">
+                              {review.display_name || review.username || "Anonymous"}
+                            </div>
+                            <UserTags roles={review.roles} />
                           </div>
-                          <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                          <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
                             {new Date(review.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                           </div>
                         </div>
@@ -506,10 +525,10 @@ const ServerProfile = () => {
                               if (reply) {
                                 api.reviews.reply(review.id, reply)
                                   .then(() => {
-                                    toast.success("Reply submitted");
+                                    toast({ title: "Reply submitted" });
                                     loadReviews(server.id, reviewsPage);
                                   })
-                                  .catch(err => toast.error(err.message));
+                                  .catch(err => toast({ variant: "destructive", title: err.message }));
                               }
                             }}
                           >

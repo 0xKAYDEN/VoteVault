@@ -8,7 +8,8 @@ export const getReviews = async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      `SELECT r.*, p.username, p.display_name, p.avatar_url 
+      `SELECT r.*, p.username, p.display_name, p.avatar_url,
+       (SELECT GROUP_CONCAT(role) FROM user_roles WHERE user_id = r.user_id) as roles
        FROM reviews r 
        LEFT JOIN profiles p ON r.user_id = p.id 
        WHERE r.server_id = ? 
@@ -17,13 +18,18 @@ export const getReviews = async (req, res) => {
       [serverId, Number(limit), Number(offset)]
     );
 
+    const formatted = rows.map(r => ({
+      ...r,
+      roles: r.roles ? r.roles.split(',') : []
+    }));
+
     const [total] = await pool.query(
       'SELECT COUNT(*) as count FROM reviews WHERE server_id = ?',
       [serverId]
     );
 
     res.json({
-      reviews: rows,
+      reviews: formatted,
       total: total[0].count,
       page: Number(page),
       totalPages: Math.ceil(total[0].count / limit)

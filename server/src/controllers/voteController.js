@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
+import { trackVote } from '../middleware/statsMiddleware.js';
 
 const COOLDOWN_HOURS = 12;
 
@@ -60,6 +61,9 @@ export const submitVote = async (req, res) => {
     // Update server vote count
     await pool.query('UPDATE servers SET vote_count = vote_count + 1 WHERE id = ?', [server_id]);
 
+    // Track global vote
+    await trackVote();
+
     res.json({ message: 'Vote recorded successfully' });
   } catch (err) {
     console.error(err);
@@ -74,8 +78,8 @@ export const getAnalytics = async (req, res) => {
   try {
     let query = `
       SELECT v.*, s.name as server_name 
-      FROM votes v 
-      JOIN servers s ON v.server_id = s.id 
+      FROM votes v
+      JOIN servers s ON v.server_id = s.id
       WHERE 1=1
     `;
     const params = [];

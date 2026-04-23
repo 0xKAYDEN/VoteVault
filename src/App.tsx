@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth.context";
 import { Header } from "@/components/Header";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import Index from "./pages/Index.tsx";
@@ -17,6 +17,7 @@ import NewServer from "./pages/dashboard/NewServer.tsx";
 import EditServer from "./pages/dashboard/EditServer.tsx";
 import ApiKeys from "./pages/dashboard/ApiKeys.tsx";
 import VoteAnalytics from "./pages/dashboard/VoteAnalytics.tsx";
+import Settings from "./pages/dashboard/Settings.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminOverview from "./pages/admin/AdminOverview.tsx";
 import AdminServers from "./pages/admin/AdminServers.tsx";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="servers/new" element={<NewServer />} />
               <Route path="servers/edit/:id" element={<EditServer />} />
               <Route path="api-keys" element={<ApiKeys />} />
+              <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminOverview />} />

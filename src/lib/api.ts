@@ -21,8 +21,15 @@ async function request(endpoint: string, options: RequestInit = {}) {
 export const api = {
   auth: {
     login: (credentials: any) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+    googleLogin: (idToken: string) => request('/auth/google-login', { method: 'POST', body: JSON.stringify({ idToken }) }),
     register: (data: any) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     getMe: () => request('/auth/me'),
+    updateProfile: (data: any) => request('/auth/update-profile', { method: 'PUT', body: JSON.stringify(data) }),
+    updateEmail: (data: any) => request('/auth/update-email', { method: 'PUT', body: JSON.stringify(data) }),
+    updatePassword: (data: any) => request('/auth/update-password', { method: 'PUT', body: JSON.stringify(data) }),
+    verifyEmail: (token: string) => request(`/auth/verify-email?token=${token}`),
+    forgotPassword: (email: string) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (data: any) => request('/auth/reset-password', { method: 'POST', body: JSON.stringify(data) }),
   },
   servers: {
     getAll: (status?: string) => request(`/servers${status ? `?status=${status}` : ''}`),
@@ -54,10 +61,32 @@ export const api = {
     create: (data: any) => request('/api-keys', { method: 'POST', body: JSON.stringify(data) }),
     revoke: (id: number) => request(`/api-keys/${id}/revoke`, { method: 'POST' }),
   },
+  upload: {
+    image: (file: File) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const token = localStorage.getItem('token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      
+      return fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Upload failed');
+        return data;
+      });
+    }
+  },
   admin: {
     getStats: () => request('/admin/stats'),
     getServers: () => request('/admin/servers'),
     updateServerStatus: (id: number, status: string) => request(`/admin/servers/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    verifyServer: (id: number, is_verified: boolean) => request(`/admin/servers/${id}/verify`, { method: 'PUT', body: JSON.stringify({ is_verified }) }),
     getUsers: () => request('/admin/users'),
     updateUserRoles: (userId: string, roles: string[]) => request(`/admin/users/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) }),
   },

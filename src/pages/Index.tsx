@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { api } from "@/lib/api";
 import { ServerCard, ServerRow } from "@/components/ServerCard";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,6 @@ const Index = () => {
   const [region, setRegion] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Conquer Top 100 — Premium Conquer Online Private Server Toplist";
-    const meta = document.querySelector('meta[name="description"]') || document.createElement("meta");
-    meta.setAttribute("name", "description");
-    meta.setAttribute("content", "Discover and vote for the best Conquer Online private servers. Real-time rankings, verified votes, and player reviews.");
-    document.head.appendChild(meta);
-
     (async () => {
       try {
         const data = await api.servers.getAll();
@@ -58,6 +53,15 @@ const Index = () => {
 
   return (
     <div className="container py-10 md:py-14">
+      <Helmet>
+        <title>Conquer Top 100 — Premium Conquer Online Private Server Toplist</title>
+        <meta name="description" content="Discover and vote for the best Conquer Online private servers. Real-time rankings, verified votes, and player reviews." />
+        <meta property="og:title" content="Conquer Top 100 — Premium Conquer Online Private Server Toplist" />
+        <meta property="og:description" content="Discover and vote for the best Conquer Online private servers. Real-time rankings, verified votes, and player reviews." />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
+
       {/* Hero */}
       <section className="text-center mb-12 md:mb-16 animate-fade-in">
         <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 text-xs uppercase tracking-widest text-muted-foreground">

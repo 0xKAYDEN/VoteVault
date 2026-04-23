@@ -5,6 +5,11 @@ CREATE TABLE IF NOT EXISTS users (
   id CHAR(36) PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  google_id VARCHAR(255) UNIQUE,
+  is_verified BOOLEAN DEFAULT FALSE,
+  verification_token VARCHAR(255),
+  reset_password_token VARCHAR(255),
+  reset_password_expires TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -16,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   username VARCHAR(255) UNIQUE,
   display_name VARCHAR(255),
   avatar_url TEXT,
+  bio TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
@@ -25,7 +31,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS user_roles (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
-  role ENUM('player', 'server_owner', 'admin') NOT NULL,
+  role ENUM('player', 'server_owner', 'admin', 'vip', 'mod') NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (user_id, role),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -50,6 +56,7 @@ CREATE TABLE IF NOT EXISTS servers (
   exp_rate INT DEFAULT 1,
   is_online BOOLEAN NOT NULL DEFAULT true,
   is_featured BOOLEAN NOT NULL DEFAULT false,
+  is_verified BOOLEAN NOT NULL DEFAULT false,
   status ENUM('pending', 'approved', 'rejected', 'banned') NOT NULL DEFAULT 'approved',
   vote_count INT NOT NULL DEFAULT 0,
   rating_avg DECIMAL(3,2) NOT NULL DEFAULT 0,
@@ -116,4 +123,13 @@ CREATE TABLE IF NOT EXISTS api_keys (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
+-- Site stats table
+CREATE TABLE IF NOT EXISTS site_stats (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  date DATE UNIQUE NOT NULL,
+  visits INT DEFAULT 0,
+  votes INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

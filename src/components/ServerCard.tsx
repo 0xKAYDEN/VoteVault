@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Crown, Star, Users, Zap, Eye } from "lucide-react";
+import { Crown, Star, Users, Zap, Eye, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ export interface ServerRow {
   rate: string | null;
   region: string | null;
   is_online: boolean;
+  is_verified?: boolean;
   vote_count: number;
   rating_avg: number;
   rating_count: number;
@@ -76,9 +77,14 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="min-w-0">
               <Link to={`/server/${server.slug}`} className="block">
-                <h3 className="font-display text-xl font-bold truncate hover:text-primary transition">
-                  {server.name}
-                </h3>
+                <div className="flex items-center gap-1.5 hover:text-primary transition group/title">
+                  <h3 className="font-display text-xl font-bold truncate">
+                    {server.name}
+                  </h3>
+                  {server.is_verified && (
+                    <ShieldCheck className="h-4 w-4 text-primary-glow shrink-0" title="Verified Server" />
+                  )}
+                </div>
               </Link>
               <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{server.short_description}</p>
             </div>

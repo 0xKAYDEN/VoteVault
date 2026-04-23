@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -18,9 +19,10 @@ const AdminUsers = () => {
   const load = async () => {
     try {
       const data = await api.admin.getUsers();
-      setUsers(data || []);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error loading users:", err);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -30,10 +32,11 @@ const AdminUsers = () => {
 
   const toggleRole = async (userId: string, currentRoles: string[], roleToToggle: string) => {
     let newRoles;
-    if (currentRoles.includes(roleToToggle)) {
-      newRoles = currentRoles.filter(r => r !== roleToToggle);
+    const roles = Array.isArray(currentRoles) ? currentRoles : [];
+    if (roles.includes(roleToToggle)) {
+      newRoles = roles.filter(r => r !== roleToToggle);
     } else {
-      newRoles = [...currentRoles, roleToToggle];
+      newRoles = [...roles, roleToToggle];
     }
 
     try {
@@ -45,11 +48,15 @@ const AdminUsers = () => {
     }
   };
 
-  const filtered = users.filter(u => 
-    u.email.toLowerCase().includes(search.toLowerCase()) || 
-    u.username?.toLowerCase().includes(search.toLowerCase()) ||
-    u.display_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = (users || []).filter(u => {
+    if (!u) return false;
+    const email = u.email || "";
+    const username = u.username || "";
+    const displayName = u.display_name || "";
+    return email.toLowerCase().includes(search.toLowerCase()) || 
+           username.toLowerCase().includes(search.toLowerCase()) ||
+           displayName.toLowerCase().includes(search.toLowerCase());
+  });
 
   if (loading) return <div className="glass rounded-2xl h-64 shimmer" />;
 
@@ -84,7 +91,7 @@ const AdminUsers = () => {
                       <Avatar className="h-10 w-10 border border-white/10">
                         <AvatarImage src={u.avatar_url} />
                         <AvatarFallback className="bg-primary/20 text-primary uppercase">
-                          {u.display_name?.[0] || u.username?.[0] || u.email[0]}
+                          {u.display_name?.[0] || u.username?.[0] || u.email?.[0] || "?"}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
@@ -94,12 +101,12 @@ const AdminUsers = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-xs text-muted-foreground">
-                    <div>Joined: {new Date(u.account_created).toLocaleDateString()}</div>
-                    <div>ID: {u.id.slice(0, 8)}...</div>
+                    <div>Joined: {u.account_created ? new Date(u.account_created).toLocaleDateString() : "Unknown"}</div>
+                    <div>ID: {u.id?.slice(0, 8)}...</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {u.roles.map((r: string) => (
+                      {Array.isArray(u.roles) && u.roles.map((r: string) => (
                         <Badge key={r} variant="outline" className={cn(
                           "text-[10px] uppercase",
                           r === "admin" ? "border-rose-500/50 text-rose-400 bg-rose-500/5" :
@@ -114,11 +121,11 @@ const AdminUsers = () => {
                   <td className="px-6 py-4 text-right">
                     <Button 
                       size="sm" 
-                      variant={u.roles.includes("admin") ? "destructive" : "outline"}
+                      variant={Array.isArray(u.roles) && u.roles.includes("admin") ? "destructive" : "outline"}
                       className="h-8 text-xs"
                       onClick={() => toggleRole(u.id, u.roles, "admin")}
                     >
-                      {u.roles.includes("admin") ? (
+                      {Array.isArray(u.roles) && u.roles.includes("admin") ? (
                         <><ShieldAlert className="h-3.5 w-3.5 mr-1.5" /> Revoke Admin</>
                       ) : (
                         <><ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Make Admin</>

@@ -1,7 +1,7 @@
 import express from 'express';
-import { 
-  getAllServers, updateServerStatus, 
-  getAllUsers, updateUserRole, getAdminStats 
+import {
+  getAllServers, updateServerStatus, verifyServer,
+  getAllUsers, updateUserRole, getAdminStats
 } from '../controllers/adminController.js';
 import auth from '../middleware/auth.js';
 import adminOnly from '../middleware/adminOnly.js';
@@ -15,6 +15,7 @@ router.use(adminOnly);
 router.get('/stats', getAdminStats);
 router.get('/servers', getAllServers);
 router.put('/servers/:id/status', updateServerStatus);
+router.put('/servers/:id/verify', verifyServer);
 router.get('/users', getAllUsers);
 router.put('/users/:userId/roles', updateUserRole);
 

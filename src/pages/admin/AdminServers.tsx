@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { 
   Server, Check, X, Ban, ExternalLink, 
-  Search, Filter, MoreVertical, Edit, Trash2
+  Search, Filter, MoreVertical, Edit, Trash2,
+  ShieldCheck, ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const AdminServers = () => {
   const [servers, setServers] = useState<any[]>([]);
@@ -19,9 +21,10 @@ const AdminServers = () => {
   const load = async () => {
     try {
       const data = await api.admin.getServers();
-      setServers(data || []);
+      setServers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error loading servers:", err);
+      setServers([]);
     } finally {
       setLoading(false);
     }
@@ -39,8 +42,22 @@ const AdminServers = () => {
     }
   };
 
-  const filtered = servers.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.owner_username?.toLowerCase().includes(search.toLowerCase());
+  const handleVerifyToggle = async (id: number, current: boolean) => {
+    try {
+      await api.admin.verifyServer(id, !current);
+      toast.success(`Server ${!current ? 'verified' : 'unverified'}`);
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const filtered = (servers || []).filter(s => {
+    if (!s) return false;
+    const name = s.name || "";
+    const owner = s.owner_username || s.owner_display_name || "";
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase()) || 
+                          owner.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filter === "all" || s.status === filter;
     return matchesSearch && matchesFilter;
   });
@@ -92,17 +109,20 @@ const AdminServers = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                        {s.logo_url ? <img src={s.logo_url} className="w-full h-full object-cover" /> : <Server className="h-5 w-5 text-muted-foreground" />}
+                        {s.logo_url ? <img src={s.logo_url} className="w-full h-full object-cover" alt="" /> : <Server className="h-5 w-5 text-muted-foreground" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-bold truncate">{s.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">v{s.version} • {s.region}</div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="font-bold truncate">{s.name || "Unnamed"}</div>
+                          {s.is_verified ? <ShieldCheck className="h-3.5 w-3.5 text-primary-glow" /> : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">v{s.version || "?"} • {s.region || "?"}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <div className="font-medium">{s.owner_display_name || s.owner_username}</div>
-                    <div className="text-xs text-muted-foreground">ID: {s.owner_id.slice(0, 8)}...</div>
+                    <div className="font-medium">{s.owner_display_name || s.owner_username || "Unknown"}</div>
+                    <div className="text-xs text-muted-foreground">ID: {s.owner_id?.slice(0, 8)}...</div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <Badge 
@@ -115,11 +135,11 @@ const AdminServers = () => {
                         "border-white/10 text-muted-foreground"
                       )}
                     >
-                      {s.status}
+                      {s.status || "Unknown"}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-center font-mono-num text-sm font-bold">
-                    {s.vote_count.toLocaleString()}
+                    {(s.vote_count || 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -143,6 +163,15 @@ const AdminServers = () => {
                           <Check className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        className={cn("h-8 w-8", s.is_verified ? "text-primary" : "text-muted-foreground")}
+                        onClick={() => handleVerifyToggle(s.id, !!s.is_verified)}
+                        title={s.is_verified ? "Unverify Server" : "Verify Server"}
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="outline" className="h-8 w-8" asChild>
                         <Link to={`/server/${s.slug}`} target="_blank"><ExternalLink className="h-4 w-4" /></Link>
                       </Button>

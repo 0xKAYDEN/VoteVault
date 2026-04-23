@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Crown, LayoutDashboard, LogOut, Server, BookOpen, User as UserIcon, Plus, ShieldAlert } from "lucide-react";
+import { Crown, LayoutDashboard, LogOut, Server, BookOpen, User as UserIcon, Plus, ShieldAlert, Settings } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserTags } from "@/components/UserTag";
 import { toast } from "sonner";
 
 export function Header() {
@@ -55,18 +56,26 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 glass glass-hover rounded-full pl-1 pr-3 py-1">
                     <Avatar className="h-8 w-8 border border-white/10">
+                      <AvatarImage src={profile?.avatar_url || ""} />
                       <AvatarFallback className="bg-gradient-crimson text-white text-xs font-bold">{initials}</AvatarFallback>
                     </Avatar>
-                    <span className="hidden sm:inline text-sm font-medium max-w-[120px] truncate">
-                      {profile?.display_name || profile?.username || "Player"}
-                    </span>
+                    <div className="hidden sm:flex flex-col items-start leading-tight">
+                       <span className="text-sm font-medium max-w-[120px] truncate">
+                        {profile?.display_name || profile?.username || "Player"}
+                      </span>
+                      <UserTags roles={profile?.roles} className="mt-0.5 opacity-80" />
+                    </div>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="glass-strong border-white/10 w-56">
-                  <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {isOwner ? "Server Owner" : "Player"}
+                  <DropdownMenuLabel className="flex flex-col">
+                    <span className="text-sm font-bold truncate">{profile?.display_name || profile?.username}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
+                  
+                  <DropdownMenuItem asChild><Link to="/dashboard/settings"><Settings className="mr-2 h-4 w-4" />Account Settings</Link></DropdownMenuItem>
+                  
                   {isOwner ? (
                     <>
                       <DropdownMenuItem asChild><Link to="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link></DropdownMenuItem>

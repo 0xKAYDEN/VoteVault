@@ -3,11 +3,28 @@ import pool from '../db.js';
 
 export const getServers = async (req, res) => {
   try {
-    const { status = 'approved' } = req.query;
-    const [rows] = await pool.query(
-      'SELECT * FROM servers WHERE status = ? ORDER BY vote_count DESC',
-      [status]
-    );
+    const { status = 'approved', search, region, version } = req.query;
+    let query = 'SELECT * FROM servers WHERE status = ?';
+    const params = [status];
+
+    if (search) {
+      query += ' AND (name LIKE ? OR short_description LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (region && region !== 'all') {
+      query += ' AND region = ?';
+      params.push(region);
+    }
+
+    if (version && version !== 'all') {
+      query += ' AND version = ?';
+      params.push(version);
+    }
+
+    query += ' ORDER BY vote_count DESC';
+
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -62,11 +79,25 @@ export const createServer = async (req, res) => {
       ]
     );
 
-    // Promote to server_owner if not already
-    await pool.query(
-      'INSERT IGNORE INTO user_roles (id, user_id, role) VALUES (?, ?, ?)',
-      [uuidv4(), owner_id, 'server_owner']
-    );
+    // Promote to server_owner if they are currently a player, or add the role if they have no roles.
+    // This avoids creating multiple rows if they only had the 'player' role.
+    const [roles] = await pool.query('SELECT role FROM user_roles WHERE user_id = ?', [owner_id]);
+    const hasRole = roles.length > 0;
+    const isPlayerOnly = roles.length === 1 && roles[0].role === 'player';
+
+    if (isPlayerOnly) {
+      await pool.query(
+        'UPDATE user_roles SET role = ? WHERE user_id = ? AND role = ?',
+        ['server_owner', owner_id, 'player']
+      );
+    } else if (!hasRole) {
+      await pool.query(
+        'INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, ?)',
+        [uuidv4(), owner_id, 'server_owner']
+      );
+    }
+    // If they already have other roles (like admin), we keep them as they are or could add server_owner 
+    // but the request was to specifically update the 'player' rule.
 
     res.status(201).json({ id: result.insertId, public_id, slug });
   } catch (err) {

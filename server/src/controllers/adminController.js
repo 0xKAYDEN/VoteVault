@@ -29,6 +29,19 @@ export const updateServerStatus = async (req, res) => {
   }
 };
 
+export const verifyServer = async (req, res) => {
+  const { id } = req.params;
+  const { is_verified } = req.body;
+
+  try {
+    await pool.query('UPDATE servers SET is_verified = ? WHERE id = ?', [is_verified, id]);
+    res.json({ message: `Server verification updated` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating server verification' });
+  }
+};
+
 // Users Management
 export const getAllUsers = async (req, res) => {
   try {
@@ -90,13 +103,26 @@ export const getAdminStats = async (req, res) => {
     const [voteCount] = await pool.query('SELECT COUNT(*) as count FROM votes');
     const [reviewCount] = await pool.query('SELECT COUNT(*) as count FROM reviews');
     const [pendingServers] = await pool.query('SELECT COUNT(*) as count FROM servers WHERE status = "pending"');
+    
+    // Total Website Visits (sum from site_stats)
+    const [totalVisits] = await pool.query('SELECT SUM(visits) as count FROM site_stats');
+    
+    // Historical stats for charts (last 30 days)
+    const [history] = await pool.query(`
+      SELECT date, visits, votes 
+      FROM site_stats 
+      WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      ORDER BY date ASC
+    `);
 
     res.json({
       users: userCount[0].count,
       servers: serverCount[0].count,
       votes: voteCount[0].count,
       reviews: reviewCount[0].count,
-      pendingServers: pendingServers[0].count
+      pendingServers: pendingServers[0].count,
+      totalVisits: totalVisits[0].count || 0,
+      history: history
     });
   } catch (err) {
     console.error(err);
