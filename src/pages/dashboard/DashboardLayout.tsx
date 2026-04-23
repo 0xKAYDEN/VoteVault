@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Server, KeyRound, BookOpen, Plus } from "lucide-react";
+import { LayoutDashboard, Server, KeyRound, BookOpen, Plus, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const items = [
   { to: "/dashboard", end: true, label: "Overview", icon: LayoutDashboard },
+  { to: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/dashboard/servers", label: "My Servers", icon: Server },
   { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
   { to: "/api-docs", label: "API Docs", icon: BookOpen },

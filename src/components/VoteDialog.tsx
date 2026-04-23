@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Shield, RefreshCw, Loader2 } from "lucide-react";
@@ -84,16 +84,11 @@ export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess
     if (!open || !user) return;
     newChallenge();
     (async () => {
-      const since = new Date(Date.now() - COOLDOWN_HOURS * 3600 * 1000).toISOString();
-      const { data } = await supabase.from("votes")
-        .select("voted_at").eq("server_id", serverId).eq("voter_user_id", user.id)
-        .gte("voted_at", since).order("voted_at", { ascending: false }).limit(1);
-      if (data && data.length > 0) {
-        const last = new Date(data[0].voted_at).getTime();
-        const left = COOLDOWN_HOURS * 3600 * 1000 - (Date.now() - last);
-        setCooldownLeft(left > 0 ? left : null);
-      } else {
-        setCooldownLeft(null);
+      try {
+        const { cooldownLeft: left } = await api.votes.checkCooldown(serverId);
+        setCooldownLeft(left);
+      } catch (err) {
+        console.error("Error checking cooldown:", err);
       }
     })();
   }, [open, user, serverId]);
@@ -123,22 +118,20 @@ export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess
     }
     setSubmitting(true);
     const fp = fingerprint();
-    const { error } = await supabase.from("votes").insert({
-      server_id: serverId,
-      voter_user_id: user.id,
-      voter_fingerprint: fp,
-      voter_user_agent: navigator.userAgent.slice(0, 255),
-      challenge_type_passed: challenge,
-      is_suspicious: false,
-    });
-    setSubmitting(false);
-    if (error) {
+    try {
+      await api.votes.submit({
+        server_id: serverId,
+        voter_fingerprint: fp,
+        challenge_type_passed: challenge,
+      });
+      toast.success(`Vote recorded for ${serverName}!`);
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
       toast.error("Vote failed: " + error.message);
-      return;
+    } finally {
+      setSubmitting(false);
     }
-    toast.success(`Vote recorded for ${serverName}!`);
-    onOpenChange(false);
-    onSuccess();
   };
 
   const cooldownText = useMemo(() => {

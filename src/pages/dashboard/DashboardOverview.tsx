@@ -1,34 +1,46 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import { Server, Zap, Star, TrendingUp } from "lucide-react";
+import { 
+  Zap, Server, Star, Users, ArrowUpRight, 
+  MessageCircle, TrendingUp, Calendar, AlertCircle, Eye
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const DashboardOverview = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ servers: 0, totalVotes: 0, avgRating: 0, votes24h: 0 });
+  const [stats, setStats] = useState<any>({
+    servers: 0,
+    totalVotes: 0,
+    totalVisits: 0,
+    avgRating: 0,
+    votes24h: 0,
+    recentReviews: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = async () => {
+    try {
+      const data = await api.servers.getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error("Error loading dashboard stats:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: srvs } = await supabase.from("servers").select("id,vote_count,rating_avg").eq("owner_id", user.id);
-      const ids = (srvs ?? []).map(s => s.id);
-      const totalVotes = (srvs ?? []).reduce((s, x) => s + (x.vote_count || 0), 0);
-      const avgRating = srvs && srvs.length ? srvs.reduce((s, x) => s + (x.rating_avg || 0), 0) / srvs.length : 0;
-      let votes24h = 0;
-      if (ids.length) {
-        const since = new Date(Date.now() - 86_400_000).toISOString();
-        const { count } = await supabase.from("votes").select("*", { count: "exact", head: true }).in("server_id", ids).gte("voted_at", since);
-        votes24h = count ?? 0;
-      }
-      setStats({ servers: srvs?.length ?? 0, totalVotes, avgRating, votes24h });
-    })();
+    if (user) loadStats();
   }, [user]);
 
   const tiles = [
     { label: "Your Servers", value: stats.servers, icon: Server },
-    { label: "Total Votes", value: stats.totalVotes.toLocaleString(), icon: Zap, accent: true },
-    { label: "Avg Rating", value: stats.avgRating.toFixed(1), icon: Star },
-    { label: "Votes (24h)", value: stats.votes24h, icon: TrendingUp },
+    { label: "Total Votes", value: Number(stats.totalVotes).toLocaleString(), icon: Zap, accent: true },
+    { label: "Total Visits", value: Number(stats.totalVisits).toLocaleString(), icon: Eye },
+    { label: "Avg Rating", value: Number(stats.avgRating).toFixed(1), icon: Star },
   ];
 
   return (
@@ -48,6 +60,60 @@ const DashboardOverview = () => {
           </div>
         ))}
       </div>
+      <div className="glass rounded-2xl p-6">
+        <h3 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" />
+          Recent Reviews
+        </h3>
+        <div className="space-y-4">
+          {stats.recentReviews.length > 0 ? (
+            stats.recentReviews.map((r: any) => (
+              <div key={r.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <span className="font-bold text-sm">{r.display_name || r.username || "Anonymous"}</span>
+                    <span className="text-muted-foreground text-xs ml-2">on {r.server_name}</span>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Star key={s} className={`h-3 w-3 ${r.rating >= s ? "text-[hsl(45_95%_60%)] fill-current" : "text-white/10"}`} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground italic mb-3">"{r.comment}"</p>
+                {r.owner_response ? (
+                  <div className="text-xs text-primary bg-primary/10 rounded-lg p-2 border border-primary/20">
+                    <span className="font-bold uppercase tracking-tighter mr-2">Your Reply:</span>
+                    {r.owner_response}
+                  </div>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-7 text-[10px]"
+                    onClick={() => {
+                      const reply = prompt("Enter your reply:");
+                      if (reply) {
+                        api.reviews.reply(r.id, reply)
+                          .then(() => {
+                            toast.success("Reply submitted");
+                            loadStats();
+                          })
+                          .catch(err => toast.error(err.message));
+                      }
+                    }}
+                  >
+                    Reply
+                  </Button>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No reviews yet.</p>
+          )}
+        </div>
+      </div>
+
       <div className="glass rounded-2xl p-6">
         <h3 className="font-display text-lg font-bold mb-2">Welcome to your dashboard</h3>
         <p className="text-muted-foreground text-sm">Add a server to start collecting votes. Each server gets its own analytics and an API key for verifying voters.</p>

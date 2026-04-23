@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Crown, LayoutDashboard, LogOut, Server, BookOpen, User as UserIcon, Plus } from "lucide-react";
+import { Crown, LayoutDashboard, LogOut, Server, BookOpen, User as UserIcon, Plus, ShieldAlert } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -10,11 +10,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 export function Header() {
-  const { user, profile, isOwner, signOut } = useAuth();
+  const { user, profile, isOwner, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    signOut();
     toast.success("Signed out");
     navigate("/");
   };
@@ -77,6 +77,11 @@ export function Header() {
                     <DropdownMenuItem asChild><Link to="/dashboard/servers/new"><UserIcon className="mr-2 h-4 w-4" />Become an Owner</Link></DropdownMenuItem>
                   )}
                   <DropdownMenuItem asChild><Link to="/api-docs"><BookOpen className="mr-2 h-4 w-4" />API Docs</Link></DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin"><ShieldAlert className="mr-2 h-4 w-4" />Admin Panel</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />Sign Out

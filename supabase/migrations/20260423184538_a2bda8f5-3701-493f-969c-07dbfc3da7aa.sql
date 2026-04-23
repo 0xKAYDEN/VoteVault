@@ -96,7 +96,7 @@ CREATE TABLE public.reviews (
   id BIGSERIAL PRIMARY KEY,
   public_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   server_id BIGINT NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
   owner_response TEXT,

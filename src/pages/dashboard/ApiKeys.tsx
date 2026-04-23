@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,12 +28,16 @@ const ApiKeys = () => {
 
   const load = async () => {
     if (!user) return;
-    const [k, s] = await Promise.all([
-      supabase.from("api_keys").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("servers").select("id,name").eq("owner_id", user.id),
-    ]);
-    setKeys(k.data ?? []);
-    setServers(s.data ?? []);
+    try {
+      const [k, s] = await Promise.all([
+        api.apiKeys.getAll(),
+        api.servers.getMyServers(),
+      ]);
+      setKeys(k || []);
+      setServers(s || []);
+    } catch (err) {
+      console.error("Error loading keys/servers:", err);
+    }
   };
   useEffect(() => { load(); }, [user]);
 
@@ -41,26 +45,31 @@ const ApiKeys = () => {
     if (!user) return;
     const key = genKey();
     const hash = await sha256(key);
-    const { error } = await supabase.from("api_keys").insert({
-      owner_id: user.id,
-      server_id: serverId ? Number(serverId) : null,
-      key_prefix: key.slice(0, 10),
-      key_hash: hash,
-      label: label || null,
-    });
-    if (error) return toast.error(error.message);
-    setReveal(key);
-    setLabel("");
-    toast.success("API key created — copy it now, it won't be shown again");
-    load();
+    try {
+      await api.apiKeys.create({
+        server_id: serverId ? Number(serverId) : null,
+        key_prefix: key.slice(0, 10),
+        key_hash: hash,
+        label: label || null,
+      });
+      setReveal(key);
+      setLabel("");
+      toast.success("API key created — copy it now, it won't be shown again");
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const revoke = async (id: number) => {
     if (!confirm("Revoke this key?")) return;
-    const { error } = await supabase.from("api_keys").update({ revoked: true }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Revoked");
-    load();
+    try {
+      await api.apiKeys.revoke(id);
+      toast.success("Revoked");
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   return (

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 const Auth = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user } = useAuth();
+  const { user, login, register } = useAuth();
   const [tab, setTab] = useState(params.get("mode") === "signup" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,26 +23,28 @@ const Auth = () => {
 
   const handleSignIn = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Welcome back!");
-    navigate("/");
+    try {
+      await login({ email, password });
+      toast.success("Welcome back!");
+      navigate("/");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSignUp = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: { username, display_name: username },
-      },
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — you can sign in now.");
-    setTab("signin");
+    try {
+      await register({ email, password, username });
+      toast.success("Account created!");
+      navigate("/");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

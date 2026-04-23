@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Eye, Power } from "lucide-react";
+import { 
+  Plus, Edit, Trash2, Eye, Power, 
+  ExternalLink, Zap, Star, Users, Shield, Clock, AlertCircle 
+} from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const MyServers = () => {
   const { user } = useAuth();
@@ -13,25 +17,37 @@ const MyServers = () => {
 
   const load = async () => {
     if (!user) return;
-    const { data } = await supabase.from("servers").select("*").eq("owner_id", user.id).order("created_at", { ascending: false });
-    setServers(data ?? []);
-    setLoading(false);
+    try {
+      const data = await api.servers.getMyServers();
+      setServers(data || []);
+    } catch (err) {
+      console.error("Error loading my servers:", err);
+      toast.error("Failed to load servers");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, [user]);
 
   const toggleOnline = async (id: number, current: boolean) => {
-    const { error } = await supabase.from("servers").update({ is_online: !current }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success(`Server marked ${!current ? "online" : "offline"}`);
-    load();
+    try {
+      await api.servers.update(id, { is_online: !current });
+      toast.success(`Server marked ${!current ? "online" : "offline"}`);
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const remove = async (id: number) => {
     if (!confirm("Delete this server permanently?")) return;
-    const { error } = await supabase.from("servers").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Server deleted");
-    load();
+    try {
+      await api.servers.delete(id);
+      toast.success("Server deleted");
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   return (
@@ -71,9 +87,10 @@ const MyServers = () => {
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button size="sm" variant="outline" asChild><Link to={`/server/${s.slug}`}><Eye className="h-4 w-4" /></Link></Button>
-                <Button size="sm" variant="outline" onClick={() => toggleOnline(s.id, s.is_online)}><Power className="h-4 w-4" /></Button>
-                <Button size="sm" variant="outline" onClick={() => remove(s.id)} className="hover:border-destructive/50 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                <Button size="sm" variant="outline" asChild title="View Profile"><Link to={`/server/${s.slug}`}><Eye className="h-4 w-4" /></Link></Button>
+                <Button size="sm" variant="outline" asChild title="Edit Profile"><Link to={`/dashboard/servers/edit/${s.id}`}><Edit className="h-4 w-4" /></Link></Button>
+                <Button size="sm" variant="outline" onClick={() => toggleOnline(s.id, s.is_online)} title={s.is_online ? "Set Offline" : "Set Online"}><Power className="h-4 w-4" /></Button>
+                <Button size="sm" variant="outline" onClick={() => remove(s.id)} title="Delete Server" className="hover:border-destructive/50 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
           ))}

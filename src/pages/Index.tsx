@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { ServerCard, ServerRow } from "@/components/ServerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,14 @@ const Index = () => {
     document.head.appendChild(meta);
 
     (async () => {
-      const { data } = await supabase
-        .from("servers")
-        .select("*")
-        .eq("status", "approved")
-        .order("vote_count", { ascending: false });
-      setServers((data ?? []) as any);
-      setLoading(false);
+      try {
+        const data = await api.servers.getAll();
+        setServers(data || []);
+      } catch (err) {
+        console.error("Error fetching servers:", err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -40,18 +41,18 @@ const Index = () => {
     }
     if (region) list = list.filter(s => s.region === region);
     switch (sort) {
-      case "votes": list.sort((a, b) => b.vote_count - a.vote_count); break;
-      case "rating": list.sort((a, b) => b.rating_avg - a.rating_avg); break;
-      case "newest": list.sort((a, b) => b.id - a.id); break;
+      case "votes": list.sort((a, b) => Number(b.vote_count) - Number(a.vote_count)); break;
+      case "rating": list.sort((a, b) => Number(b.rating_avg) - Number(a.rating_avg)); break;
+      case "newest": list.sort((a, b) => Number(b.id) - Number(a.id)); break;
       case "name": list.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case "players": list.sort((a, b) => b.player_count - a.player_count); break;
+      case "players": list.sort((a, b) => Number(b.player_count) - Number(a.player_count)); break;
     }
     return list;
   }, [servers, query, sort, region]);
 
-  const totalVotes = servers.reduce((s, x) => s + x.vote_count, 0);
-  const totalPlayers = servers.reduce((s, x) => s + x.player_count, 0);
-  const newest = [...servers].sort((a, b) => b.id - a.id)[0];
+  const totalVotes = servers.reduce((s, x) => s + (Number(x.vote_count) || 0), 0);
+  const totalPlayers = servers.reduce((s, x) => s + (Number(x.player_count) || 0), 0);
+  const newest = [...servers].sort((a, b) => Number(b.id) - Number(a.id))[0];
 
   const regions = Array.from(new Set(servers.map(s => s.region).filter(Boolean))) as string[];
 

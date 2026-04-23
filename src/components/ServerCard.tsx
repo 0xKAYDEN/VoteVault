@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Crown, Star, Users, Zap } from "lucide-react";
+import { Crown, Star, Users, Zap, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,12 @@ export interface ServerRow {
   is_online: boolean;
   vote_count: number;
   rating_avg: number;
+  rating_count: number;
   player_count: number;
+  profile_visits: number;
+  features?: string | null;
+  events_time?: string | null;
+  upcoming_updates?: string | null;
 }
 
 export function ServerCard({ server, rank }: { server: ServerRow; rank: number }) {
@@ -91,7 +96,15 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-[hsl(45_95%_60%)]" fill="currentColor" /><span className="font-mono-num text-foreground">{server.rating_avg.toFixed(1)}</span></span>
+              <span className="flex items-center gap-1.5" title={`${server.rating_count} reviews`}>
+                <Star className="h-3.5 w-3.5 text-[hsl(45_95%_60%)]" fill="currentColor" />
+                <span className="font-mono-num text-foreground">{Number(server.rating_avg).toFixed(1)}</span>
+                {server.rating_count > 0 && <span className="opacity-60">({server.rating_count})</span>}
+              </span>
+              <span className="flex items-center gap-1.5" title="Total profile visits">
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-mono-num">{server.profile_visits.toLocaleString()}</span>
+              </span>
               <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /><span className="font-mono-num">{server.player_count}</span></span>
               <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-primary" /><span className="font-mono-num text-foreground font-bold">{server.vote_count.toLocaleString()}</span> votes</span>
             </div>

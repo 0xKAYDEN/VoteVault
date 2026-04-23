@@ -137,7 +137,9 @@ export type Database = {
           banner_url: string | null
           created_at: string
           discord_url: string | null
+          events_time: string | null
           exp_rate: number | null
+          features: string | null
           id: number
           is_featured: boolean
           is_online: boolean
@@ -146,6 +148,7 @@ export type Database = {
           name: string
           owner_id: string
           player_count: number
+          profile_visits: number
           public_id: string
           rate: string | null
           rating_avg: number
@@ -154,6 +157,7 @@ export type Database = {
           short_description: string
           slug: string
           status: Database["public"]["Enums"]["server_status"]
+          upcoming_updates: string | null
           updated_at: string
           version: string | null
           vote_count: number
@@ -163,7 +167,9 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           discord_url?: string | null
+          events_time?: string | null
           exp_rate?: number | null
+          features?: string | null
           id?: number
           is_featured?: boolean
           is_online?: boolean
@@ -172,6 +178,7 @@ export type Database = {
           name: string
           owner_id: string
           player_count?: number
+          profile_visits?: number
           public_id?: string
           rate?: string | null
           rating_avg?: number
@@ -180,6 +187,7 @@ export type Database = {
           short_description: string
           slug: string
           status?: Database["public"]["Enums"]["server_status"]
+          upcoming_updates?: string | null
           updated_at?: string
           version?: string | null
           vote_count?: number
@@ -189,7 +197,9 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           discord_url?: string | null
+          events_time?: string | null
           exp_rate?: number | null
+          features?: string | null
           id?: number
           is_featured?: boolean
           is_online?: boolean
@@ -198,6 +208,7 @@ export type Database = {
           name?: string
           owner_id?: string
           player_count?: number
+          profile_visits?: number
           public_id?: string
           rate?: string | null
           rating_avg?: number
@@ -206,6 +217,7 @@ export type Database = {
           short_description?: string
           slug?: string
           status?: Database["public"]["Enums"]["server_status"]
+          upcoming_updates?: string | null
           updated_at?: string
           version?: string | null
           vote_count?: number
