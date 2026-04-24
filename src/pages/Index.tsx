@@ -93,6 +93,15 @@ const Index = () => {
 
       {/* Hero */}
       <section className="text-center mb-12 md:mb-16 animate-fade-in relative">
+        {/* Background Image - Hero Only */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none -mx-[50vw] left-1/2 right-1/2 w-screen">
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
+            style={{ backgroundImage: "url('/Asstets/bg.png')" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
+        </div>
+
         {/* Animated background orbs */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-float-orb" />
