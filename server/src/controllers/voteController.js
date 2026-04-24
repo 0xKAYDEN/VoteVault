@@ -51,11 +51,17 @@ export const checkCooldown = async (req, res) => {
 };
 
 export const submitVote = async (req, res) => {
-  const { server_id, challenge_type_passed, voter_fingerprint, tracking_param, recaptchaToken } = req.body;
+  const { server_id, challenge_type_passed, voter_fingerprint, tracking_param } = req.body;
   const user_id = req.user.id;
 
-  if (!recaptchaToken) {
-    return res.status(400).json({ message: 'reCAPTCHA token is required' });
+  // Validate challenge type
+  if (!challenge_type_passed) {
+    return res.status(400).json({ message: 'Challenge verification is required' });
+  }
+
+  const validChallenges = ['math', 'captcha', 'puzzle', 'slider'];
+  if (!validChallenges.includes(challenge_type_passed)) {
+    return res.status(400).json({ message: 'Invalid challenge type' });
   }
 
   try {
@@ -110,7 +116,7 @@ export const submitVote = async (req, res) => {
     // Check and award vote achievements
     await checkVoteAchievements(user_id);
 
-    logger.info(`Vote recorded: user ${user_id} voted for server ${server_id}`);
+    logger.info(`Vote recorded: user ${user_id} voted for server ${server_id} with challenge ${challenge_type_passed}`);
     res.json({ message: 'Vote recorded successfully' });
   } catch (err) {
     logger.error('Error submitting vote:', err);
