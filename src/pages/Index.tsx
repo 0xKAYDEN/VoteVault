@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Trophy, Zap, Users, Sparkles, X, Grid3x3, List, LayoutGrid, BadgeCheck, Eye } from "lucide-react";
 import { ServerListSkeleton, ServerCompactGridSkeleton, ServerRowListSkeleton } from "@/components/LoadingStates";
-import { HeroLogoAnimation } from "@/components/HeroLogoAnimation";
 
 type SortKey = "votes" | "rating" | "newest" | "name" | "players";
 type ViewMode = "card" | "compact" | "list";
@@ -88,9 +87,6 @@ const Index = () => {
         </div>
         <h1 className="font-display font-bold uppercase tracking-tight leading-[0.95]
                        text-5xl md:text-7xl lg:text-8xl mb-4 animate-scale-in relative">
-          {/* Lottie animation behind text */}
-          <HeroLogoAnimation opacity={0.23} desktopWidth={320} mobileWidth={220} />
-
           <span className="block text-gradient relative z-10">VOTE</span>
           <span className="block shimmer text-crimson-gradient bg-clip-text relative z-10">VAULT</span>
         </h1>
