@@ -45,6 +45,7 @@ import serverOwnerRoutes from './routes/serverOwnerRoutes.js';
 import userPreferencesRoutes from './routes/userPreferencesRoutes.js';
 import achievementRoutes from './routes/achievementRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import healthRoutes from './routes/healthRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,8 +140,9 @@ app.use('/api/server-owner', serverOwnerRoutes);
 app.use('/api/user-preferences', userPreferencesRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api', healthRoutes);
 
-// Basic health check
+// Basic health check (legacy endpoint)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'VoteVault Backend is running' });
 });
