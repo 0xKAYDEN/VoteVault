@@ -1,6 +1,5 @@
 import express from 'express';
-import { getServers } from '../controllers/serverController.js';
-import { getSiteStats } from '../controllers/statsController.js';
+import db from '../db.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 import logger from '../utils/logger.js';
 
@@ -11,7 +10,7 @@ const router = express.Router();
  * POST /api/batch
  * Body: { requests: [{ endpoint: '/servers', method: 'GET' }, ...] }
  */
-router.post('/', cacheMiddleware(300), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { requests } = req.body;
 
@@ -27,30 +26,37 @@ router.post('/', cacheMiddleware(300), async (req, res) => {
 
     const results = await Promise.allSettled(
       requests.map(async (request) => {
-        const { endpoint, method = 'GET' } = request;
+        const { endpoint } = request;
 
-        // Only allow GET requests in batch
-        if (method !== 'GET') {
-          throw new Error('Only GET requests allowed in batch');
-        }
-
-        // Route to appropriate controller
+        // Handle /servers endpoint
         if (endpoint === '/servers' || endpoint.startsWith('/servers?')) {
-          const mockReq = { query: {} };
-          const mockRes = {
-            json: (data) => data,
-            status: (code) => ({ json: (data) => ({ status: code, data }) })
-          };
-          return await getServers(mockReq, mockRes);
+          const [rows] = await db.query(`
+            SELECT
+              s.*,
+              COALESCE(v.vote_count, 0) as vote_count,
+              COALESCE(r.rating_avg, 0) as rating_avg,
+              COALESCE(r.rating_count, 0) as rating_count
+            FROM servers s
+            LEFT JOIN (
+              SELECT server_id, COUNT(*) as vote_count
+              FROM votes
+              GROUP BY server_id
+            ) v ON s.id = v.server_id
+            LEFT JOIN (
+              SELECT server_id, AVG(rating) as rating_avg, COUNT(*) as rating_count
+              FROM reviews
+              GROUP BY server_id
+            ) r ON s.id = r.server_id
+            WHERE s.status = 'approved'
+            ORDER BY vote_count DESC
+          `);
+          return rows;
         }
 
+        // Handle /stats/site endpoint
         if (endpoint === '/stats/site') {
-          const mockReq = {};
-          const mockRes = {
-            json: (data) => data,
-            status: (code) => ({ json: (data) => ({ status: code, data }) })
-          };
-          return await getSiteStats(mockReq, mockRes);
+          const [result] = await db.query('SELECT SUM(visits) as total_visits FROM site_stats');
+          return { total_visits: result[0]?.total_visits || 0 };
         }
 
         throw new Error(`Endpoint ${endpoint} not supported in batch`);
