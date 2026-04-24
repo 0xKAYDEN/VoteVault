@@ -1,5 +1,21 @@
 import db from '../db.js';
 
+// Get site-wide statistics
+export const getSiteStats = async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'SELECT SUM(visits) as total_visits FROM site_stats'
+    );
+
+    res.json({
+      total_visits: result[0]?.total_visits || 0
+    });
+  } catch (error) {
+    console.error('Error fetching site stats:', error);
+    res.status(500).json({ error: 'Failed to fetch site stats' });
+  }
+};
+
 // Get total website visits
 export const getTotalVisits = async (req, res) => {
   try {
