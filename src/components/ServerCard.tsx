@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.context";
-import { VoteDialog } from "./VoteDialog";
 
 export interface ServerRow {
   id: number;
@@ -38,7 +37,6 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-  const [voteDialogOpen, setVoteDialogOpen] = useState(false);
 
   const isTop3 = rank <= 3;
   const accentBorder =
@@ -224,35 +222,12 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
                   <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
                 </Button>
                 <Button variant="outline" size="sm" asChild><Link to={`/server/${server.slug}`}>Details</Link></Button>
-                <Button
-                  variant="vote"
-                  size="sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setVoteDialogOpen(true);
-                  }}
-                  className="gap-1.5"
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  Vote Now
-                </Button>
+                <Button variant="vote" size="sm" asChild><Link to={`/server/${server.slug}?vote=1`}>Vote</Link></Button>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Vote Dialog */}
-      <VoteDialog
-        open={voteDialogOpen}
-        onOpenChange={setVoteDialogOpen}
-        serverId={server.id}
-        serverName={server.name}
-        onSuccess={() => {
-          toast.success("Vote recorded!");
-          window.location.reload();
-        }}
-      />
     </>
   );
 }
