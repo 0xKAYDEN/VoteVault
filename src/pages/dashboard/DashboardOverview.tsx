@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { DashboardStatsSkeleton, LoadingSpinner } from "@/components/LoadingStates";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const DashboardOverview = () => {
   const { user } = useAuth();
@@ -108,24 +110,41 @@ const DashboardOverview = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {tiles.map((t) => (
-          <div key={t.label} className="glass rounded-2xl p-4">
-            <div className={`grid h-9 w-9 place-items-center rounded-lg ${t.accent ? "bg-gradient-crimson" : "bg-white/5 border border-white/10"} mb-3`}>
-              <t.icon className="h-4 w-4 text-white" />
+      {loading ? (
+        <DashboardStatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {tiles.map((t) => (
+            <div key={t.label} className="glass rounded-2xl p-4">
+              <div className={`grid h-9 w-9 place-items-center rounded-lg ${t.accent ? "bg-gradient-crimson" : "bg-white/5 border border-white/10"} mb-3`}>
+                <t.icon className="h-4 w-4 text-white" />
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{t.label}</div>
+              <div className="font-mono-num font-bold text-2xl mt-0.5">{t.value}</div>
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{t.label}</div>
-            <div className="font-mono-num font-bold text-2xl mt-0.5">{t.value}</div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <div className="glass rounded-2xl p-6">
         <h3 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-primary" />
           Recent Reviews
         </h3>
-        <div className="space-y-4">
-          {stats.recentReviews.length > 0 ? (
+        {loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                <div className="flex justify-between items-start mb-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-12 w-full mb-3" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {stats.recentReviews.length > 0 ? (
             stats.recentReviews.map((r: any) => (
               <div key={r.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
                 <div className="flex justify-between items-start mb-2">
@@ -170,7 +189,8 @@ const DashboardOverview = () => {
           ) : (
             <p className="text-sm text-muted-foreground italic">No reviews yet.</p>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-6">

@@ -11,7 +11,8 @@
       "Bash(npm start *)",
       "Bash(taskkill /F /IM node.exe)",
       "Bash(netstat -ano)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

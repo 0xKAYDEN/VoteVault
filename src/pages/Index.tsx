@@ -5,6 +5,7 @@ import { ServerCard, ServerRow } from "@/components/ServerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Trophy, Zap, Users, Sparkles, X, Grid3x3, List, LayoutGrid, BadgeCheck, Eye } from "lucide-react";
+import { ServerListSkeleton, ServerCompactGridSkeleton, ServerRowListSkeleton } from "@/components/LoadingStates";
 
 type SortKey = "votes" | "rating" | "newest" | "name" | "players";
 type ViewMode = "card" | "compact" | "list";
@@ -185,27 +186,33 @@ const Index = () => {
       )}
 
       {/* Server list */}
-      <div className={
-        viewMode === "card" ? "space-y-3" :
-        viewMode === "compact" ? "grid grid-cols-1 md:grid-cols-2 gap-3" :
-        "space-y-2"
-      }>
-        {loading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="glass rounded-xl h-32 shimmer" />
-          ))
-        ) : filtered.length === 0 ? (
-          <div className="glass rounded-xl p-12 text-center text-muted-foreground">
-            No servers match your filters.
-          </div>
-        ) : viewMode === "card" ? (
-          filtered.map((s, i) => <ServerCard key={s.id} server={s} rank={i + 1} />)
+      {loading ? (
+        viewMode === "card" ? (
+          <ServerListSkeleton count={5} />
         ) : viewMode === "compact" ? (
-          filtered.map((s, i) => <CompactServerCard key={s.id} server={s} rank={i + 1} />)
+          <ServerCompactGridSkeleton count={6} />
         ) : (
-          filtered.map((s, i) => <ListServerCard key={s.id} server={s} rank={i + 1} />)
-        )}
-      </div>
+          <ServerRowListSkeleton count={10} />
+        )
+      ) : filtered.length === 0 ? (
+        <div className="glass rounded-xl p-12 text-center text-muted-foreground">
+          No servers match your filters.
+        </div>
+      ) : (
+        <div className={
+          viewMode === "card" ? "space-y-3" :
+          viewMode === "compact" ? "grid grid-cols-1 md:grid-cols-2 gap-3" :
+          "space-y-2"
+        }>
+          {viewMode === "card" ? (
+            filtered.map((s, i) => <ServerCard key={s.id} server={s} rank={i + 1} />)
+          ) : viewMode === "compact" ? (
+            filtered.map((s, i) => <CompactServerCard key={s.id} server={s} rank={i + 1} />)
+          ) : (
+            filtered.map((s, i) => <ListServerCard key={s.id} server={s} rank={i + 1} />)
+          )}
+        </div>
+      )}
     </div>
   );
 };

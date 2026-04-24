@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Crown, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import ReCAPTCHA from "react-google-recaptcha";
+import { ButtonLoading } from "@/components/LoadingStates";
 
 // reCAPTCHA v2 Site Key - get from https://www.google.com/recaptcha/admin
 const RECAPTCHA_V2_SITE_KEY = import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"; // Test key
@@ -162,7 +163,9 @@ const Auth = () => {
                 </div>
               )}
               <Button type="submit" variant="hero" className="w-full" disabled={busy || !loginRecaptchaToken}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
+                <ButtonLoading isLoading={busy} loadingText="Signing in...">
+                  Sign In
+                </ButtonLoading>
               </Button>
             </form>
           </TabsContent>
@@ -240,7 +243,9 @@ const Auth = () => {
               </div>
 
               <Button type="submit" variant="hero" className="w-full" disabled={busy || !signupRecaptchaToken}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
+                <ButtonLoading isLoading={busy} loadingText="Creating account...">
+                  Create Account
+                </ButtonLoading>
               </Button>
             </form>
           </TabsContent>

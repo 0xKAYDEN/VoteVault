@@ -15,12 +15,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { UserTags } from "@/components/UserTag";
 import { format, subDays, eachDayOfInterval, isSameDay } from "date-fns";
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { LoadingSpinner, ChartSkeleton, ProfileSkeleton } from "@/components/LoadingStates";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ServerProfile = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -191,7 +193,11 @@ const ServerProfile = () => {
   };
 
   if (loading) {
-    return <div className="container py-20"><div className="glass rounded-2xl h-64 shimmer" /></div>;
+    return (
+      <div className="container py-10">
+        <ProfileSkeleton />
+      </div>
+    );
   }
   if (!server) {
     return (
@@ -453,7 +459,22 @@ const ServerProfile = () => {
           <div className="space-y-4">
             <h3 className="font-display text-xl font-bold px-2">Community Reviews</h3>
             {reviewsLoading ? (
-              <div className="glass rounded-2xl p-12 text-center animate-pulse">Loading reviews...</div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-3 w-1/4" />
+                          <Skeleton className="h-16 w-full" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : reviews.length > 0 ? (
               reviews.map((review) => (
                 <div key={review.id} className="glass rounded-2xl p-6 animate-fade-in">
@@ -587,7 +608,9 @@ const ServerProfile = () => {
               <CardContent className="pt-4">
                 <div className="h-[250px] w-full">
                   {statsLoading ? (
-                    <div className="h-full w-full flex items-center justify-center text-muted-foreground animate-pulse">Loading data...</div>
+                    <div className="h-full w-full flex items-center justify-center">
+                      <Skeleton className="h-full w-full" />
+                    </div>
                   ) : (
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -642,7 +665,9 @@ const ServerProfile = () => {
               <CardContent className="pt-4">
                 <div className="h-[250px] w-full">
                   {reviewsLoading ? (
-                    <div className="h-full w-full flex items-center justify-center text-muted-foreground animate-pulse">Loading data...</div>
+                    <div className="h-full w-full flex items-center justify-center">
+                      <Skeleton className="h-full w-full" />
+                    </div>
                   ) : (
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <BarChart data={ratingDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
