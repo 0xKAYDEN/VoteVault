@@ -31,24 +31,10 @@ router.post('/', async (req, res) => {
         // Handle /servers endpoint
         if (endpoint === '/servers' || endpoint.startsWith('/servers?')) {
           const [rows] = await db.query(`
-            SELECT
-              s.*,
-              COALESCE(v.vote_count, 0) as vote_count,
-              COALESCE(r.rating_avg, 0) as rating_avg,
-              COALESCE(r.rating_count, 0) as rating_count
+            SELECT s.*
             FROM servers s
-            LEFT JOIN (
-              SELECT server_id, COUNT(*) as vote_count
-              FROM votes
-              GROUP BY server_id
-            ) v ON s.id = v.server_id
-            LEFT JOIN (
-              SELECT server_id, AVG(rating) as rating_avg, COUNT(*) as rating_count
-              FROM reviews
-              GROUP BY server_id
-            ) r ON s.id = r.server_id
             WHERE s.status = 'approved'
-            ORDER BY vote_count DESC
+            ORDER BY s.vote_count DESC
           `);
           return rows;
         }
