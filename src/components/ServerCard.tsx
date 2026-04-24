@@ -23,8 +23,7 @@ export interface ServerRow {
   vote_count: number;
   rating_avg: number;
   rating_count: number;
-  player_count: number;
-  active_players?: number;
+  active_players: number; // Renamed from player_count
   profile_visits: number;
   features?: string | null;
   events_time?: string | null;

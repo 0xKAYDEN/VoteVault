@@ -68,13 +68,13 @@ const Index = () => {
       case "rating": list.sort((a, b) => Number(b.rating_avg) - Number(a.rating_avg)); break;
       case "newest": list.sort((a, b) => Number(b.id) - Number(a.id)); break;
       case "name": list.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case "players": list.sort((a, b) => Number(b.player_count) - Number(a.player_count)); break;
+      case "players": list.sort((a, b) => Number(b.active_players) - Number(a.active_players)); break;
     }
     return list;
   }, [servers, query, sort, region, verifiedOnly]);
 
   const totalVotes = servers.reduce((s, x) => s + (Number(x.vote_count) || 0), 0);
-  const totalPlayers = servers.reduce((s, x) => s + (Number(x.player_count) || 0), 0);
+  const totalPlayers = servers.reduce((s, x) => s + (Number(x.active_players) || 0), 0);
   const verifiedCount = servers.filter(s => s.is_verified).length;
   const newest = [...servers].sort((a, b) => Number(b.id) - Number(a.id))[0];
 
@@ -275,7 +275,7 @@ function CompactServerCard({ server, rank }: { server: ServerRow; rank: number }
         </div>
         <div className="flex items-center gap-1">
           <Users className="h-3 w-3" />
-          <span className="font-mono-num">{Number(server.player_count).toLocaleString()}</span>
+          <span className="font-mono-num">{Number(server.active_players).toLocaleString()}</span>
         </div>
         {server.region && (
           <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
@@ -309,7 +309,7 @@ function ListServerCard({ server, rank }: { server: ServerRow; rank: number }) {
         </div>
         <div className="flex items-center gap-1">
           <Users className="h-4 w-4" />
-          <span className="font-mono-num">{Number(server.player_count).toLocaleString()}</span>
+          <span className="font-mono-num">{Number(server.active_players).toLocaleString()}</span>
         </div>
         {server.region && (
           <div className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-xs">

@@ -294,7 +294,7 @@ const ServerProfile = () => {
               value={`${Number(server.rating_avg).toFixed(1)} (${server.rating_count})`} 
               icon={<Star className="h-4 w-4 text-[hsl(45_95%_60%)]" />} 
             />
-            <Stat label="Active Players" value={server.player_count.toLocaleString()} icon={<Users className="h-4 w-4" />} />
+            <Stat label="Active Players" value={server.active_players.toLocaleString()} icon={<Users className="h-4 w-4" />} />
             <Stat label="Server Region" value={server.region ?? "—"} icon={<Globe className="h-4 w-4" />} />
           </div>
         </div>
@@ -718,7 +718,7 @@ const ServerProfile = () => {
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Players Online</div>
-                <div className="text-2xl font-bold font-mono-num">{server.player_count.toLocaleString()}</div>
+                <div className="text-2xl font-bold font-mono-num">{server.active_players.toLocaleString()}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
