@@ -16,6 +16,8 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [twoFactorToken, setTwoFactorToken] = useState("");
+  const [requires2FA, setRequires2FA] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { document.title = "Sign In — Conquer Top 100"; }, []);
@@ -24,9 +26,15 @@ const Auth = () => {
   const handleSignIn = async () => {
     setBusy(true);
     try {
-      await login({ email, password });
-      toast.success("Welcome back!");
-      navigate("/");
+      const response = await login({ email, password, twoFactorToken });
+
+      if (response?.requires2FA) {
+        setRequires2FA(true);
+        toast.info("Please enter your 2FA code");
+      } else {
+        toast.success("Welcome back!");
+        navigate("/");
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -73,6 +81,20 @@ const Auth = () => {
               <Label>Password</Label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-white/5 border-white/10" />
             </div>
+            {requires2FA && (
+              <div>
+                <Label>Two-Factor Code</Label>
+                <Input
+                  type="text"
+                  value={twoFactorToken}
+                  onChange={(e) => setTwoFactorToken(e.target.value)}
+                  placeholder="Enter 6-digit code or backup code"
+                  className="bg-white/5 border-white/10"
+                  maxLength={10}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Enter code from your authenticator app or use a backup code.</p>
+              </div>
+            )}
             <Button variant="hero" className="w-full" onClick={handleSignIn} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>

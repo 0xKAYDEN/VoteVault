@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -8,7 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Loader2, Lock, Mail, User } from "lucide-react";
+import { Camera, Loader2, Lock, Mail, User, Shield, Copy, Check } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Settings = () => {
   const { profile, refresh } = useAuth();
@@ -19,6 +26,17 @@ const Settings = () => {
   const [emailLoading, setEmailLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // 2FA states
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [showSetup2FA, setShowSetup2FA] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const [profileData, setProfileData] = useState({
     display_name: profile?.display_name || "",
@@ -35,6 +53,113 @@ const Settings = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    load2FAStatus();
+  }, []);
+
+  const load2FAStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/2fa/status`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setTwoFactorEnabled(data.enabled);
+    } catch (error) {
+      console.error("Error loading 2FA status:", error);
+    }
+  };
+
+  const generate2FA = async () => {
+    setTwoFactorLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/2fa/generate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setQrCode(data.qrCode);
+      setSecret(data.secret);
+      setShowSetup2FA(true);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message || "Failed to generate 2FA" });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  const enable2FA = async () => {
+    if (!verificationCode) {
+      return toast({ variant: "destructive", title: "Error", description: "Please enter verification code" });
+    }
+
+    setTwoFactorLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/2fa/enable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ token: verificationCode })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to enable 2FA');
+      }
+
+      setBackupCodes(data.backupCodes);
+      setShowBackupCodes(true);
+      setShowSetup2FA(false);
+      setTwoFactorEnabled(true);
+      toast({ title: "Success", description: "2FA enabled successfully" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  const disable2FA = async () => {
+    if (!confirm("Are you sure you want to disable 2FA? This will make your account less secure.")) {
+      return;
+    }
+
+    setTwoFactorLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/2fa/disable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ password: "" })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disable 2FA');
+      }
+
+      setTwoFactorEnabled(false);
+      toast({ title: "Success", description: "2FA disabled successfully" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+    toast({ title: "Copied", description: "Copied to clipboard" });
+  };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,6 +386,143 @@ const Settings = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Two-Factor Authentication Section */}
+        <Card className="glass border-white/10">
+          <CardHeader className="bg-white/[0.02] border-b border-white/5">
+            <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /> Two-Factor Authentication</CardTitle>
+            <CardDescription>Add an extra layer of security to your account using Google Authenticator.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                <div>
+                  <h4 className="font-medium">Status</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {twoFactorEnabled ? "2FA is enabled" : "2FA is disabled"}
+                  </p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${twoFactorEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                  {twoFactorEnabled ? "Enabled" : "Disabled"}
+                </div>
+              </div>
+
+              {twoFactorEnabled ? (
+                <Button
+                  variant="destructive"
+                  onClick={disable2FA}
+                  disabled={twoFactorLoading}
+                >
+                  {twoFactorLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Disable 2FA
+                </Button>
+              ) : (
+                <Button
+                  variant="hero"
+                  onClick={generate2FA}
+                  disabled={twoFactorLoading}
+                >
+                  {twoFactorLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Enable 2FA
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 2FA Setup Dialog */}
+        <Dialog open={showSetup2FA} onOpenChange={setShowSetup2FA}>
+          <DialogContent className="glass-strong border-white/10">
+            <DialogHeader>
+              <DialogTitle>Set Up Two-Factor Authentication</DialogTitle>
+              <DialogDescription>
+                Scan the QR code with Google Authenticator or enter the secret key manually.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {qrCode && (
+                <div className="flex justify-center">
+                  <img src={qrCode} alt="QR Code" className="border border-white/10 rounded-lg" />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Secret Key (Manual Entry)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={secret}
+                    readOnly
+                    className="bg-white/5 border-white/10 font-mono text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(secret)}
+                  >
+                    {copiedCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Verification Code</Label>
+                <Input
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  className="bg-white/5 border-white/10"
+                  maxLength={6}
+                />
+              </div>
+
+              <Button
+                variant="hero"
+                onClick={enable2FA}
+                disabled={twoFactorLoading || !verificationCode}
+                className="w-full"
+              >
+                {twoFactorLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Verify and Enable
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Backup Codes Dialog */}
+        <Dialog open={showBackupCodes} onOpenChange={setShowBackupCodes}>
+          <DialogContent className="glass-strong border-white/10">
+            <DialogHeader>
+              <DialogTitle>Backup Codes</DialogTitle>
+              <DialogDescription>
+                Save these backup codes in a safe place. Each code can be used once if you lose access to your authenticator.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-2 p-4 bg-white/5 rounded-lg border border-white/10 font-mono text-sm">
+                {backupCodes.map((code, i) => (
+                  <div key={i} className="text-center py-1">
+                    {code}
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => copyToClipboard(backupCodes.join('\n'))}
+                className="w-full"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy All Codes
+              </Button>
+              <Button
+                variant="hero"
+                onClick={() => setShowBackupCodes(false)}
+                className="w-full"
+              >
+                I've Saved My Codes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
+import { notifyNewReview } from './notificationController.js';
 
 export const getReviews = async (req, res) => {
   const { serverId } = req.params;
@@ -76,7 +77,7 @@ export const submitReview = async (req, res) => {
   try {
     const public_id = uuidv4();
     await pool.query(
-      `INSERT INTO reviews (public_id, server_id, user_id, rating, comment) 
+      `INSERT INTO reviews (public_id, server_id, user_id, rating, comment)
        VALUES (?, ?, ?, ?, ?)`,
       [public_id, server_id, user_id, rating, comment]
     );
@@ -91,6 +92,9 @@ export const submitReview = async (req, res) => {
       'UPDATE servers SET rating_avg = ?, rating_count = ? WHERE id = ?',
       [stats[0].avg || 0, stats[0].count, server_id]
     );
+
+    // Send notification to server owner
+    await notifyNewReview(server_id, user_id);
 
     res.json({ message: 'Review submitted successfully' });
   } catch (err) {

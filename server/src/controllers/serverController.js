@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
+import { invalidateCache } from '../middleware/cache.js';
 
 export const getServers = async (req, res) => {
   try {
@@ -96,8 +97,12 @@ export const createServer = async (req, res) => {
         [uuidv4(), owner_id, 'server_owner']
       );
     }
-    // If they already have other roles (like admin), we keep them as they are or could add server_owner 
+    // If they already have other roles (like admin), we keep them as they are or could add server_owner
     // but the request was to specifically update the 'player' rule.
+
+    // Invalidate caches
+    await invalidateCache('cache:/api/servers*');
+    await invalidateCache('cache:/api/categories/*');
 
     res.status(201).json({ id: result.insertId, public_id, slug });
   } catch (err) {
@@ -121,6 +126,11 @@ export const updateServer = async (req, res) => {
     }
 
     await pool.query('UPDATE servers SET ? WHERE id = ?', [updates, id]);
+
+    // Invalidate caches
+    await invalidateCache('cache:/api/servers*');
+    await invalidateCache('cache:/api/categories/*');
+
     res.json({ message: 'Server updated successfully' });
   } catch (err) {
     console.error(err);
@@ -137,6 +147,11 @@ export const deleteServer = async (req, res) => {
     if (rows[0].owner_id !== owner_id) return res.status(403).json({ message: 'Unauthorized' });
 
     await pool.query('DELETE FROM servers WHERE id = ?', [id]);
+
+    // Invalidate caches
+    await invalidateCache('cache:/api/servers*');
+    await invalidateCache('cache:/api/categories/*');
+
     res.json({ message: 'Server deleted successfully' });
   } catch (err) {
     console.error(err);

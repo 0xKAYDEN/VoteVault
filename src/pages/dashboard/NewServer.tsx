@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { api } from "@/lib/api";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -32,12 +33,33 @@ const NewServer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [form, setForm] = useState({
     name: "", short_description: "", long_description: "",
     version: "", rate: "", region: "", website_url: "", discord_url: "", banner_url: "", logo_url: "",
     features: "", events_time: "", upcoming_updates: "",
   });
   const set = (k: keyof typeof form) => (e: any) => setForm({ ...form, [k]: e.target.value });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.categories.getAll();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    })();
+  }, []);
+
+  const toggleCategory = (categoryId: number) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
 
   const submit = async () => {
     if (!user) return;
@@ -64,6 +86,16 @@ const NewServer = () => {
     };
     try {
       const data = await api.servers.create(insert);
+
+      // Add categories to the server
+      if (selectedCategories.length > 0) {
+        await Promise.all(
+          selectedCategories.map(categoryId =>
+            api.categories.addToServer(data.id, categoryId)
+          )
+        );
+      }
+
       toast.success("Server submitted!");
       navigate(`/server/${data.slug}`);
     } catch (error: any) {
@@ -97,7 +129,28 @@ const NewServer = () => {
         <Field label="Website URL" v={form.website_url} onChange={set("website_url")} placeholder="https://" />
         <Field label="Discord URL" v={form.discord_url} onChange={set("discord_url")} placeholder="https://discord.gg/..." />
         <Field label="Banner URL" v={form.banner_url} onChange={set("banner_url")} placeholder="https://...image.jpg" />
-        
+
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Categories</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {categories.map(cat => (
+              <div key={cat.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`cat-${cat.id}`}
+                  checked={selectedCategories.includes(cat.id)}
+                  onCheckedChange={() => toggleCategory(cat.id)}
+                />
+                <label
+                  htmlFor={`cat-${cat.id}`}
+                  className="text-sm cursor-pointer select-none"
+                >
+                  {cat.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-4 pt-4 border-t border-white/5">
           <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Additional Details</h3>
           <div>

@@ -8,8 +8,10 @@ import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
 import logger from './utils/logger.js';
 import { trackVisit } from './middleware/statsMiddleware.js';
+import { initializeSocket } from './socket.js';
 import authRoutes from './routes/authRoutes.js';
 import serverRoutes from './routes/serverRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
@@ -17,6 +19,14 @@ import voteRoutes from './routes/voteRoutes.js';
 import apiKeyRoutes from './routes/apiKeyRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import friendsRoutes from './routes/friendsRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
+import twoFactorRoutes from './routes/twoFactorRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import userExperienceRoutes from './routes/userExperienceRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +89,14 @@ app.use('/api/votes', voteRoutes);
 app.use('/api/api-keys', apiKeyRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/friends', friendsRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/user-experience', userExperienceRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -101,7 +119,13 @@ app.use((err, req, res, next) => {
 export default app;
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const httpServer = createServer(app);
+
+  // Initialize Socket.io
+  initializeSocket(httpServer);
+
+  httpServer.listen(PORT, () => {
     logger.info(`Server is running on port ${PORT}`);
+    logger.info(`WebSocket server initialized`);
   });
 }

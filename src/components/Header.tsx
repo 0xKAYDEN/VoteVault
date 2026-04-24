@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserTags } from "@/components/UserTag";
+import { FriendsChat } from "@/components/FriendsChat";
+import { NotificationBell } from "@/components/NotificationBell";
 import { toast } from "sonner";
 
 export function Header() {
@@ -39,6 +41,8 @@ export function Header() {
 
           <nav className="hidden md:flex items-center gap-1">
             <Button variant="ghost" size="sm" asChild><Link to="/">Top Servers</Link></Button>
+            <Button variant="ghost" size="sm" asChild><Link to="/categories">Categories</Link></Button>
+            <Button variant="ghost" size="sm" asChild><Link to="/contact">Contact</Link></Button>
             <Button variant="ghost" size="sm" asChild><Link to="/api-docs">API</Link></Button>
             {user && (
               <Button variant="ghost" size="sm" asChild><Link to="/dashboard/servers/new"><Plus className="h-4 w-4" /> Add Server</Link></Button>
@@ -52,7 +56,10 @@ export function Header() {
                 <Button variant="hero" size="sm" asChild><Link to="/auth?mode=signup">Join</Link></Button>
               </>
             ) : (
-              <DropdownMenu>
+              <>
+                <NotificationBell />
+                <FriendsChat />
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 glass glass-hover rounded-full pl-1 pr-3 py-1">
                     <Avatar className="h-8 w-8 border border-white/10">
@@ -63,7 +70,6 @@ export function Header() {
                        <span className="text-sm font-medium max-w-[120px] truncate">
                         {profile?.display_name || profile?.username || "Player"}
                       </span>
-                      <UserTags roles={profile?.roles} className="mt-0.5 opacity-80" />
                     </div>
                   </button>
                 </DropdownMenuTrigger>
@@ -97,6 +103,7 @@ export function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             )}
           </div>
         </div>

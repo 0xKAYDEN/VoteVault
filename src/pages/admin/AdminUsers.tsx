@@ -1,20 +1,39 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { 
-  Users, Shield, User, Search, 
-  Check, X, ShieldAlert, ShieldCheck
+import {
+  Users, Shield, User, Search,
+  Check, X, ShieldAlert, ShieldCheck, Crown, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const AVAILABLE_ROLES = [
+  { value: 'player', label: 'Player', icon: User, color: 'text-muted-foreground border-white/10' },
+  { value: 'server_owner', label: 'Server Owner', icon: Crown, color: 'text-primary-glow border-primary/50 bg-primary/5' },
+  { value: 'mod', label: 'Moderator', icon: Shield, color: 'text-blue-400 border-blue-500/50 bg-blue-500/5' },
+  { value: 'vip', label: 'VIP', icon: Star, color: 'text-yellow-400 border-yellow-500/50 bg-yellow-500/5' },
+  { value: 'admin', label: 'Admin', icon: ShieldAlert, color: 'text-rose-400 border-rose-500/50 bg-rose-500/5' },
+];
 
 const AdminUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   const load = async () => {
     try {
@@ -30,22 +49,35 @@ const AdminUsers = () => {
 
   useEffect(() => { load(); }, []);
 
-  const toggleRole = async (userId: string, currentRoles: string[], roleToToggle: string) => {
-    let newRoles;
-    const roles = Array.isArray(currentRoles) ? currentRoles : [];
-    if (roles.includes(roleToToggle)) {
-      newRoles = roles.filter(r => r !== roleToToggle);
-    } else {
-      newRoles = [...roles, roleToToggle];
-    }
+  const openRoleDialog = (user: any) => {
+    setEditingUser(user);
+    setSelectedRoles(Array.isArray(user.roles) ? user.roles : []);
+  };
+
+  const toggleRoleInDialog = (role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
+  };
+
+  const saveRoles = async () => {
+    if (!editingUser) return;
 
     try {
-      await api.admin.updateUserRoles(userId, newRoles);
-      toast.success("User roles updated");
+      await api.admin.updateUserRoles(editingUser.id, selectedRoles);
+      toast.success("User roles updated successfully");
+      setEditingUser(null);
       load();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || "Failed to update roles");
     }
+  };
+
+  const getRoleColor = (role: string) => {
+    const roleConfig = AVAILABLE_ROLES.find(r => r.value === role);
+    return roleConfig?.color || 'border-white/10 text-muted-foreground';
   };
 
   const filtered = (users || []).filter(u => {
@@ -80,7 +112,7 @@ const AdminUsers = () => {
                 <th className="px-6 py-4 font-bold">User</th>
                 <th className="px-6 py-4 font-bold">Account Info</th>
                 <th className="px-6 py-4 font-bold">Roles</th>
-                <th className="px-6 py-4 font-bold text-right">Toggle Admin</th>
+                <th className="px-6 py-4 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -106,31 +138,71 @@ const AdminUsers = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {Array.isArray(u.roles) && u.roles.map((r: string) => (
-                        <Badge key={r} variant="outline" className={cn(
-                          "text-[10px] uppercase",
-                          r === "admin" ? "border-rose-500/50 text-rose-400 bg-rose-500/5" :
-                          r === "server_owner" ? "border-primary/50 text-primary-glow bg-primary/5" :
-                          "border-white/10 text-muted-foreground"
-                        )}>
-                          {r.replace('_', ' ')}
-                        </Badge>
-                      ))}
+                      {Array.isArray(u.roles) && u.roles.length > 0 ? (
+                        u.roles.map((r: string) => (
+                          <Badge key={r} variant="outline" className={cn(
+                            "text-[10px] uppercase",
+                            getRoleColor(r)
+                          )}>
+                            {r.replace('_', ' ')}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No roles</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Button 
-                      size="sm" 
-                      variant={Array.isArray(u.roles) && u.roles.includes("admin") ? "destructive" : "outline"}
-                      className="h-8 text-xs"
-                      onClick={() => toggleRole(u.id, u.roles, "admin")}
-                    >
-                      {Array.isArray(u.roles) && u.roles.includes("admin") ? (
-                        <><ShieldAlert className="h-3.5 w-3.5 mr-1.5" /> Revoke Admin</>
-                      ) : (
-                        <><ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Make Admin</>
-                      )}
-                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => openRoleDialog(u)}
+                        >
+                          <Shield className="h-3.5 w-3.5 mr-1.5" />
+                          Manage Roles
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="glass-strong border-white/10">
+                        <DialogHeader>
+                          <DialogTitle>Manage User Roles</DialogTitle>
+                          <DialogDescription>
+                            Select roles for {u.display_name || u.username || u.email}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          {AVAILABLE_ROLES.map(role => {
+                            const Icon = role.icon;
+                            return (
+                              <div key={role.value} className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`role-${role.value}`}
+                                  checked={selectedRoles.includes(role.value)}
+                                  onCheckedChange={() => toggleRoleInDialog(role.value)}
+                                />
+                                <label
+                                  htmlFor={`role-${role.value}`}
+                                  className="flex items-center gap-2 cursor-pointer flex-1"
+                                >
+                                  <Icon className={cn("h-4 w-4", role.color.split(' ')[0])} />
+                                  <span className="font-medium">{role.label}</span>
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setEditingUser(null)}>
+                            Cancel
+                          </Button>
+                          <Button variant="hero" onClick={saveRoles}>
+                            Save Changes
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </td>
                 </tr>
               ))}

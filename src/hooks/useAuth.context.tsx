@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { api } from "@/lib/api";
+import { initializeSocket, disconnectSocket } from "@/lib/socket";
 
 export type AppRole = "player" | "server_owner" | "admin";
 
@@ -43,6 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const prof = await api.auth.getMe();
       setProfile(prof);
       setUser({ id: prof.id, email: "" });
+
+      // Initialize socket connection
+      const token = localStorage.getItem("token");
+      if (token) {
+        initializeSocket(token);
+      }
     } catch (err) {
       signOut();
     } finally {
@@ -77,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("token");
     setUser(null);
     setProfile(null);
+    disconnectSocket();
   };
 
   const refresh = async () => {

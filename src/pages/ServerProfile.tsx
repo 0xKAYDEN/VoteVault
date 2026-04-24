@@ -468,9 +468,12 @@ const ServerProfile = () => {
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-2 mb-2">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-bold text-foreground">
+                            <Link
+                              to={`/user/${review.user_id}`}
+                              className="font-bold text-foreground hover:text-primary transition-colors"
+                            >
                               {review.display_name || review.username || "Anonymous"}
-                            </div>
+                            </Link>
                             <UserTags roles={review.roles} />
                           </div>
                           <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">

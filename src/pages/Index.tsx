@@ -4,9 +4,10 @@ import { api } from "@/lib/api";
 import { ServerCard, ServerRow } from "@/components/ServerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Trophy, Zap, Users, Sparkles, X } from "lucide-react";
+import { Search, Trophy, Zap, Users, Sparkles, X, Grid3x3, List, LayoutGrid, BadgeCheck, Eye } from "lucide-react";
 
 type SortKey = "votes" | "rating" | "newest" | "name" | "players";
+type ViewMode = "card" | "compact" | "list";
 
 const Index = () => {
   const [servers, setServers] = useState<ServerRow[]>([]);
@@ -14,12 +15,21 @@ const Index = () => {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("votes");
   const [region, setRegion] = useState<string | null>(null);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [totalVisits, setTotalVisits] = useState(0);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await api.servers.getAll();
-        setServers(data || []);
+        const [serversData, statsData] = await Promise.all([
+          api.servers.getAll(),
+          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/total-visits`)
+            .then(r => r.json())
+            .catch(() => ({ total_visits: 0 }))
+        ]);
+        setServers(serversData || []);
+        setTotalVisits(statsData.total_visits || 0);
       } catch (err) {
         console.error("Error fetching servers:", err);
       } finally {
@@ -35,6 +45,7 @@ const Index = () => {
       list = list.filter(s => s.name.toLowerCase().includes(q) || s.short_description.toLowerCase().includes(q));
     }
     if (region) list = list.filter(s => s.region === region);
+    if (verifiedOnly) list = list.filter(s => s.is_verified);
     switch (sort) {
       case "votes": list.sort((a, b) => Number(b.vote_count) - Number(a.vote_count)); break;
       case "rating": list.sort((a, b) => Number(b.rating_avg) - Number(a.rating_avg)); break;
@@ -43,10 +54,11 @@ const Index = () => {
       case "players": list.sort((a, b) => Number(b.player_count) - Number(a.player_count)); break;
     }
     return list;
-  }, [servers, query, sort, region]);
+  }, [servers, query, sort, region, verifiedOnly]);
 
   const totalVotes = servers.reduce((s, x) => s + (Number(x.vote_count) || 0), 0);
   const totalPlayers = servers.reduce((s, x) => s + (Number(x.player_count) || 0), 0);
+  const verifiedCount = servers.filter(s => s.is_verified).length;
   const newest = [...servers].sort((a, b) => Number(b.id) - Number(a.id))[0];
 
   const regions = Array.from(new Set(servers.map(s => s.region).filter(Boolean))) as string[];
@@ -82,26 +94,71 @@ const Index = () => {
           <StatPill icon={<Trophy className="h-4 w-4" />} label="Servers" value={servers.length} />
           <StatPill icon={<Zap className="h-4 w-4" />} label="Total Votes" value={totalVotes} accent />
           <StatPill icon={<Users className="h-4 w-4" />} label="Players Online" value={totalPlayers} />
+          <StatPill icon={<BadgeCheck className="h-4 w-4" />} label="Verified" value={verifiedCount} />
+          <StatPill icon={<Eye className="h-4 w-4" />} label="Total Visits" value={totalVisits} />
           {newest && <StatPill icon={<Sparkles className="h-4 w-4" />} label="Newest" value={newest.name} text />}
         </div>
       </section>
 
       {/* Filters */}
-      <div className="glass rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search servers…"
-            className="pl-10 bg-white/[0.03] border-white/10 focus-visible:ring-primary/50"
-          />
+      <div className="glass rounded-2xl p-4 mb-6 space-y-3">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search servers…"
+              className="pl-10 bg-white/[0.03] border-white/10 focus-visible:ring-primary/50"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {(["votes", "rating", "newest", "players", "name"] as SortKey[]).map(k => (
+              <Button key={k} size="sm" variant={sort === k ? "hero" : "outline"} onClick={() => setSort(k)} className="capitalize">
+                {k}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {(["votes", "rating", "newest", "players", "name"] as SortKey[]).map(k => (
-            <Button key={k} size="sm" variant={sort === k ? "hero" : "outline"} onClick={() => setSort(k)} className="capitalize">
-              {k}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={verifiedOnly ? "hero" : "outline"}
+              onClick={() => setVerifiedOnly(!verifiedOnly)}
+              className="gap-2"
+            >
+              <BadgeCheck className="h-4 w-4" />
+              Verified Only
             </Button>
-          ))}
+          </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">View:</span>
+            <Button
+              size="sm"
+              variant={viewMode === "card" ? "hero" : "outline"}
+              onClick={() => setViewMode("card")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "compact" ? "hero" : "outline"}
+              onClick={() => setViewMode("compact")}
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "list" ? "hero" : "outline"}
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -124,7 +181,11 @@ const Index = () => {
       )}
 
       {/* Server list */}
-      <div className="space-y-3">
+      <div className={
+        viewMode === "card" ? "space-y-3" :
+        viewMode === "compact" ? "grid grid-cols-1 md:grid-cols-2 gap-3" :
+        "space-y-2"
+      }>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="glass rounded-xl h-32 shimmer" />
@@ -133,8 +194,12 @@ const Index = () => {
           <div className="glass rounded-xl p-12 text-center text-muted-foreground">
             No servers match your filters.
           </div>
-        ) : (
+        ) : viewMode === "card" ? (
           filtered.map((s, i) => <ServerCard key={s.id} server={s} rank={i + 1} />)
+        ) : viewMode === "compact" ? (
+          filtered.map((s, i) => <CompactServerCard key={s.id} server={s} rank={i + 1} />)
+        ) : (
+          filtered.map((s, i) => <ListServerCard key={s.id} server={s} rank={i + 1} />)
         )}
       </div>
     </div>
@@ -154,6 +219,76 @@ function StatPill({ icon, label, value, accent, text }: { icon: React.ReactNode;
         </div>
       </div>
     </div>
+  );
+}
+
+// Compact card view
+function CompactServerCard({ server, rank }: { server: ServerRow; rank: number }) {
+  return (
+    <a href={`/server/${server.slug}`} className="glass glass-hover rounded-xl p-4 flex flex-col gap-3 transition-all hover:scale-[1.02]">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl font-bold text-primary-glow">#{rank}</div>
+        {server.logo_url && (
+          <img src={server.logo_url} alt={server.name} className="h-12 w-12 rounded-lg object-cover" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold truncate">{server.name}</h3>
+            {server.is_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
+          </div>
+          <p className="text-xs text-muted-foreground line-clamp-2">{server.short_description}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-1">
+          <Zap className="h-3 w-3 text-primary" />
+          <span className="font-mono-num">{Number(server.vote_count).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Users className="h-3 w-3" />
+          <span className="font-mono-num">{Number(server.player_count).toLocaleString()}</span>
+        </div>
+        {server.region && (
+          <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+            {server.region}
+          </div>
+        )}
+      </div>
+    </a>
+  );
+}
+
+// List view
+function ListServerCard({ server, rank }: { server: ServerRow; rank: number }) {
+  return (
+    <a href={`/server/${server.slug}`} className="glass glass-hover rounded-lg p-3 flex items-center gap-4 transition-all hover:scale-[1.01]">
+      <div className="text-xl font-bold text-primary-glow w-12 text-center">#{rank}</div>
+      {server.logo_url && (
+        <img src={server.logo_url} alt={server.name} className="h-10 w-10 rounded-lg object-cover" />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="font-bold truncate">{server.name}</h3>
+          {server.is_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">{server.short_description}</p>
+      </div>
+      <div className="hidden md:flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-1">
+          <Zap className="h-4 w-4 text-primary" />
+          <span className="font-mono-num">{Number(server.vote_count).toLocaleString()}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Users className="h-4 w-4" />
+          <span className="font-mono-num">{Number(server.player_count).toLocaleString()}</span>
+        </div>
+        {server.region && (
+          <div className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-xs">
+            {server.region}
+          </div>
+        )}
+      </div>
+    </a>
   );
 }
 

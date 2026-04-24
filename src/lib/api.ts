@@ -90,4 +90,28 @@ export const api = {
     getUsers: () => request('/admin/users'),
     updateUserRoles: (userId: string, roles: string[]) => request(`/admin/users/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) }),
   },
+  categories: {
+    getAll: () => request('/categories'),
+    getBySlug: (slug: string) => request(`/categories/${slug}`),
+    getServersByCategory: (slug: string) => request(`/categories/${slug}/servers`),
+    getServerCategories: (serverId: number) => request(`/categories/server/${serverId}`),
+    addToServer: (serverId: number, categoryId: number) => request(`/categories/server/${serverId}`, { method: 'POST', body: JSON.stringify({ categoryId }) }),
+    removeFromServer: (serverId: number, categoryId: number) => request(`/categories/server/${serverId}/${categoryId}`, { method: 'DELETE' }),
+  },
+  friends: {
+    sendRequest: (receiverId: string) => request('/friends/request', { method: 'POST', body: JSON.stringify({ receiverId }) }),
+    getRequests: () => request('/friends/requests'),
+    acceptRequest: (requestId: number) => request(`/friends/requests/${requestId}/accept`, { method: 'POST' }),
+    rejectRequest: (requestId: number) => request(`/friends/requests/${requestId}/reject`, { method: 'POST' }),
+    getList: () => request('/friends/list'),
+    remove: (friendId: string) => request(`/friends/${friendId}`, { method: 'DELETE' }),
+    checkStatus: (targetUserId: string) => request(`/friends/status/${targetUserId}`),
+  },
+  chat: {
+    send: (receiverId: string, message: string) => request('/chat/send', { method: 'POST', body: JSON.stringify({ receiverId, message }) }),
+    getConversation: (friendId: string, limit?: number, offset?: number) => request(`/chat/conversation/${friendId}?limit=${limit || 50}&offset=${offset || 0}`),
+    markAsRead: (friendId: string) => request(`/chat/read/${friendId}`, { method: 'POST' }),
+    getUnreadCount: () => request('/chat/unread-count'),
+    getRecent: () => request('/chat/recent'),
+  },
 };

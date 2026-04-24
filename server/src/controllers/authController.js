@@ -140,7 +140,7 @@ export const verifyEmail = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, twoFactorToken } = req.body;
 
   try {
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -152,6 +152,46 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Check if 2FA is enabled
+    if (user.two_factor_enabled) {
+      if (!twoFactorToken) {
+        return res.status(200).json({
+          requires2FA: true,
+          message: 'Two-factor authentication required'
+        });
+      }
+
+      // Verify 2FA token
+      const speakeasy = (await import('speakeasy')).default;
+      const verified = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: twoFactorToken,
+        window: 2
+      });
+
+      // If token verification fails, check backup codes
+      if (!verified) {
+        if (user.two_factor_backup_codes) {
+          const backupCodes = JSON.parse(user.two_factor_backup_codes);
+          const codeIndex = backupCodes.indexOf(twoFactorToken);
+
+          if (codeIndex === -1) {
+            return res.status(400).json({ message: 'Invalid two-factor code' });
+          }
+
+          // Remove used backup code
+          backupCodes.splice(codeIndex, 1);
+          await pool.query(
+            'UPDATE users SET two_factor_backup_codes = ? WHERE id = ?',
+            [JSON.stringify(backupCodes), user.id]
+          );
+        } else {
+          return res.status(400).json({ message: 'Invalid two-factor code' });
+        }
+      }
     }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });

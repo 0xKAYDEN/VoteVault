@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -33,9 +34,12 @@ const EditServer = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [initialCategories, setInitialCategories] = useState<number[]>([]);
   const [form, setForm] = useState({
     name: "", short_description: "", long_description: "",
-    version: "", rate: "", region: "", website_url: "", discord_url: "", 
+    version: "", rate: "", region: "", website_url: "", discord_url: "",
     banner_url: "", logo_url: "",
     features: "", events_time: "", upcoming_updates: "",
   });
@@ -44,29 +48,38 @@ const EditServer = () => {
     if (!user || !id) return;
     (async () => {
       try {
-        const data = await api.servers.getById(Number(id));
-        
-        if (data.owner_id !== user.id) {
+        const [serverData, allCategories, serverCategories] = await Promise.all([
+          api.servers.getById(Number(id)),
+          api.categories.getAll(),
+          api.categories.getServerCategories(Number(id))
+        ]);
+
+        if (serverData.owner_id !== user.id) {
           toast.error("You do not own this server");
           navigate("/dashboard/servers");
           return;
         }
 
         setForm({
-          name: data.name || "",
-          short_description: data.short_description || "",
-          long_description: data.long_description || "",
-          version: data.version || "",
-          rate: data.rate || "",
-          region: data.region || "",
-          website_url: data.website_url || "",
-          discord_url: data.discord_url || "",
-          banner_url: data.banner_url || "",
-          logo_url: data.logo_url || "",
-          features: data.features || "",
-          events_time: data.events_time || "",
-          upcoming_updates: data.upcoming_updates || "",
+          name: serverData.name || "",
+          short_description: serverData.short_description || "",
+          long_description: serverData.long_description || "",
+          version: serverData.version || "",
+          rate: serverData.rate || "",
+          region: serverData.region || "",
+          website_url: serverData.website_url || "",
+          discord_url: serverData.discord_url || "",
+          banner_url: serverData.banner_url || "",
+          logo_url: serverData.logo_url || "",
+          features: serverData.features || "",
+          events_time: serverData.events_time || "",
+          upcoming_updates: serverData.upcoming_updates || "",
         });
+
+        setCategories(allCategories);
+        const categoryIds = serverCategories.map((c: any) => c.id);
+        setSelectedCategories(categoryIds);
+        setInitialCategories(categoryIds);
         setLoading(false);
       } catch (err: any) {
         toast.error(err.message || "Server not found");
@@ -74,6 +87,14 @@ const EditServer = () => {
       }
     })();
   }, [user, id, navigate]);
+
+  const toggleCategory = (categoryId: number) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
 
   const set = (k: keyof typeof form) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
@@ -105,6 +126,16 @@ const EditServer = () => {
 
     try {
       await api.servers.update(Number(id), update);
+
+      // Update categories
+      const toAdd = selectedCategories.filter(c => !initialCategories.includes(c));
+      const toRemove = initialCategories.filter(c => !selectedCategories.includes(c));
+
+      await Promise.all([
+        ...toAdd.map(categoryId => api.categories.addToServer(Number(id), categoryId)),
+        ...toRemove.map(categoryId => api.categories.removeFromServer(Number(id), categoryId))
+      ]);
+
       toast.success("Server profile updated!");
       navigate("/dashboard/servers");
     } catch (error: any) {
@@ -165,6 +196,27 @@ const EditServer = () => {
         </div>
 
         <Field label="Banner URL" v={form.banner_url} onChange={set("banner_url")} placeholder="https://...banner.jpg" />
+
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Categories</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {categories.map(cat => (
+              <div key={cat.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`cat-${cat.id}`}
+                  checked={selectedCategories.includes(cat.id)}
+                  onCheckedChange={() => toggleCategory(cat.id)}
+                />
+                <label
+                  htmlFor={`cat-${cat.id}`}
+                  className="text-sm cursor-pointer select-none"
+                >
+                  {cat.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="space-y-4 pt-4 border-t border-white/5">
           <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Additional Details</h3>

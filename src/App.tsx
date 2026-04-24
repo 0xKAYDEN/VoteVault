@@ -10,6 +10,10 @@ import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
 import ServerProfile from "./pages/ServerProfile.tsx";
 import ApiDocs from "./pages/ApiDocs.tsx";
+import Contact from "./pages/Contact.tsx";
+import Categories from "./pages/Categories.tsx";
+import CategoryServers from "./pages/CategoryServers.tsx";
+import UserProfile from "./pages/UserProfile.tsx";
 import DashboardLayout from "./pages/dashboard/DashboardLayout.tsx";
 import DashboardOverview from "./pages/dashboard/DashboardOverview.tsx";
 import MyServers from "./pages/dashboard/MyServers.tsx";
@@ -39,7 +43,11 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/server/:slug" element={<ServerProfile />} />
+            <Route path="/user/:userId" element={<UserProfile />} />
             <Route path="/api-docs" element={<ApiDocs />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/categories/:slug" element={<CategoryServers />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<DashboardOverview />} />
               <Route path="analytics" element={<VoteAnalytics />} />

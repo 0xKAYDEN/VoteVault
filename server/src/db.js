@@ -17,7 +17,10 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  keepAliveInitialDelay: 10000,
+  // Remove invalid options for mysql2
+  maxIdle: 10,
+  idleTimeout: 60000, // 60 seconds
 });
 
 // Test the connection
@@ -30,9 +33,16 @@ pool.getConnection()
     console.error('Database connection failed:', err.message);
   });
 
+// Handle connection errors gracefully without crashing
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Database pool error:', err);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.error('Database connection was closed. Pool will reconnect automatically.');
+  } else if (err.code === 'ER_CON_COUNT_ERROR') {
+    console.error('Database has too many connections.');
+  } else if (err.code === 'ECONNREFUSED') {
+    console.error('Database connection was refused.');
+  }
 });
 
 export default pool;
