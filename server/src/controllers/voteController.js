@@ -106,9 +106,10 @@ export const submitVote = async (req, res) => {
     // Update server vote count
     await pool.query('UPDATE servers SET vote_count = vote_count + 1 WHERE id = ?', [server_id]);
 
-    // Invalidate server cache
-    await cache.delPattern(`cache:*/api/servers*`);
-    await cache.del(`server:${server_id}`);
+    // Invalidate ALL server caches
+    await cache.delPattern(`server:*`); // Invalidate all server detail caches
+    await cache.delPattern(`servers:*`); // Invalidate all server list caches
+    await cache.delPattern(`cache:*/api/servers*`); // Invalidate middleware cache
 
     // Track global vote
     await trackVote();
