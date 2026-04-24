@@ -8,6 +8,7 @@ import auth from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { createServerSchema, updateServerSchema } from '../schemas/serverSchemas.js';
 import { cacheMiddleware } from '../middleware/cache.js';
+import { verifyRecaptcha } from '../middleware/recaptcha.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/dashboard/stats', auth, getDashboardStats);
 router.get('/dashboard/my', auth, getMyServers);
 router.get('/id/:id', cacheMiddleware(300), getServerById);
 router.get('/:slug', cacheMiddleware(300), getServerBySlug);
-router.post('/', auth, validate(createServerSchema), createServer);
+router.post('/', auth, validate(createServerSchema), verifyRecaptcha, createServer);
 router.put('/:id', auth, validate(updateServerSchema), updateServer);
 router.delete('/:id', auth, deleteServer);
 router.post('/:id/visit', incrementVisits);

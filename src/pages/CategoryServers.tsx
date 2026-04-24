@@ -74,7 +74,7 @@ const CategoryServers = () => {
   return (
     <div className="container py-10 md:py-14">
       <Helmet>
-        <title>{category.name} Servers — Conquer Top 100</title>
+        <title>{category.name} Servers — VoteVault</title>
         <meta name="description" content={`Browse ${category.name} servers. ${category.description}`} />
       </Helmet>
 

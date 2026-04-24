@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import { 
-  Zap, Server, Star, Users, ArrowUpRight, 
-  MessageCircle, TrendingUp, Calendar, AlertCircle, Eye
+import {
+  Zap, Server, Star, Users, ArrowUpRight,
+  MessageCircle, TrendingUp, Calendar, AlertCircle, Eye, Crown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const DashboardOverview = () => {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ const DashboardOverview = () => {
     votes24h: 0,
     recentReviews: []
   });
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const loadStats = async () => {
@@ -32,8 +34,20 @@ const DashboardOverview = () => {
     }
   };
 
+  const loadSubscription = async () => {
+    try {
+      const data = await api.payments.getSubscription();
+      setSubscription(data.subscription);
+    } catch (err) {
+      console.error("Error loading subscription:", err);
+    }
+  };
+
   useEffect(() => {
-    if (user) loadStats();
+    if (user) {
+      loadStats();
+      loadSubscription();
+    }
   }, [user]);
 
   const tiles = [
@@ -49,6 +63,51 @@ const DashboardOverview = () => {
         <h1 className="font-display text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground text-sm">Server owner control center.</p>
       </div>
+
+      {/* Subscription Status */}
+      {subscription ? (
+        <div className="glass rounded-2xl p-6 border-2 border-primary/30">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-lg bg-gradient-crimson">
+                <Crown className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-bold flex items-center gap-2">
+                  {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} Plan
+                  <span className="text-sm font-normal text-primary-glow">Active</span>
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Expires: {new Date(subscription.expires_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/pricing">Manage</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-6 border border-primary/20">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-lg bg-white/5 border border-white/10">
+                <Crown className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-bold">Free Plan</h3>
+                <p className="text-sm text-muted-foreground">
+                  Upgrade to unlock premium features
+                </p>
+              </div>
+            </div>
+            <Button variant="default" size="sm" className="glow-crimson-strong" asChild>
+              <Link to="/pricing">Upgrade</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {tiles.map((t) => (
           <div key={t.label} className="glass rounded-2xl p-4">

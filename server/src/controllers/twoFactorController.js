@@ -17,8 +17,8 @@ export const generate2FASecret = async (req, res) => {
 
     // Generate secret
     const secret = speakeasy.generateSecret({
-      name: `Conquer Top 100 (${email})`,
-      issuer: 'Conquer Top 100'
+      name: `VoteVault (${email})`,
+      issuer: 'VoteVault'
     });
 
     // Generate QR code

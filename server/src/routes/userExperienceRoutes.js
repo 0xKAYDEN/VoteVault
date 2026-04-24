@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../middleware/authMiddleware.js';
+import auth from '../middleware/auth.js';
 import {
   blockUser,
   unblockUser,
@@ -12,15 +12,15 @@ import {
 const router = express.Router();
 
 // Block/Unblock
-router.post('/block', authenticate, blockUser);
-router.delete('/block/:userId', authenticate, unblockUser);
-router.get('/blocked', authenticate, getBlockedUsers);
-router.get('/blocked/check/:targetUserId', authenticate, checkBlocked);
+router.post('/block', auth, blockUser);
+router.delete('/block/:userId', auth, unblockUser);
+router.get('/blocked', auth, getBlockedUsers);
+router.get('/blocked/check/:targetUserId', auth, checkBlocked);
 
 // Reports
-router.post('/report', authenticate, submitReport);
+router.post('/report', auth, submitReport);
 
 // Search
-router.get('/search', authenticate, searchUsers);
+router.get('/search', auth, searchUsers);
 
 export default router;

@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import db from './config/database.js';
+import db from './db.js';
 import logger from './utils/logger.js';
 import { notifyNewMessage } from './controllers/notificationController.js';
 
@@ -29,7 +29,7 @@ export const initializeSocket = (server) => {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.userId;
+      socket.userId = decoded.id;
 
       next();
     } catch (error) {

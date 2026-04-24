@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(60),
@@ -32,6 +33,7 @@ const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"
 const NewServer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [busy, setBusy] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
@@ -63,28 +65,39 @@ const NewServer = () => {
 
   const submit = async () => {
     if (!user) return;
+
+    if (!executeRecaptcha) {
+      toast.error("reCAPTCHA not loaded yet");
+      return;
+    }
+
     const parsed = schema.safeParse(form);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setBusy(true);
-    const baseSlug = slugify(form.name);
-    const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
-    const insert = {
-      name: form.name.trim(),
-      slug,
-      short_description: form.short_description.trim(),
-      long_description: form.long_description?.trim() || null,
-      version: form.version?.trim() || null,
-      rate: form.rate?.trim() || null,
-      region: form.region?.trim() || null,
-      website_url: form.website_url?.trim() || null,
-      discord_url: form.discord_url?.trim() || null,
-      banner_url: form.banner_url?.trim() || null,
-      logo_url: form.logo_url?.trim() || null,
-      features: form.features?.trim() || null,
-      events_time: form.events_time?.trim() || null,
-      upcoming_updates: form.upcoming_updates?.trim() || null,
-    };
+
     try {
+      const token = await executeRecaptcha("add_server");
+
+      const baseSlug = slugify(form.name);
+      const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
+      const insert = {
+        name: form.name.trim(),
+        slug,
+        short_description: form.short_description.trim(),
+        long_description: form.long_description?.trim() || null,
+        version: form.version?.trim() || null,
+        rate: form.rate?.trim() || null,
+        region: form.region?.trim() || null,
+        website_url: form.website_url?.trim() || null,
+        discord_url: form.discord_url?.trim() || null,
+        banner_url: form.banner_url?.trim() || null,
+        logo_url: form.logo_url?.trim() || null,
+        features: form.features?.trim() || null,
+        events_time: form.events_time?.trim() || null,
+        upcoming_updates: form.upcoming_updates?.trim() || null,
+        recaptchaToken: token,
+      };
+
       const data = await api.servers.create(insert);
 
       // Add categories to the server

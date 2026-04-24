@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Server, Users, ShieldAlert, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Server, Users, ShieldAlert, ArrowLeft, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -9,13 +9,14 @@ const adminItems = [
   { to: "/admin", end: true, label: "Admin Overview", icon: LayoutDashboard },
   { to: "/admin/servers", label: "Manage Servers", icon: Server },
   { to: "/admin/users", label: "Manage Users", icon: Users },
+  { to: "/admin/payments", label: "Payments", icon: DollarSign },
 ];
 
 const AdminLayout = () => {
   const { user, profile, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => { document.title = "Admin Panel — Conquer Top 100"; }, []);
+  useEffect(() => { document.title = "Admin Panel — VoteVault"; }, []);
   
   useEffect(() => { 
     if (!loading) {

@@ -1,11 +1,25 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root (two levels up from server/src)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Debug: Check if env vars are loaded
+console.log('='.repeat(50));
+console.log('📊 Database Configuration:');
+console.log('- DB_HOST:', process.env.DB_HOST || '❌ NOT SET');
+console.log('- DB_USER:', process.env.DB_USER || '❌ NOT SET');
+console.log('- DB_NAME:', process.env.DB_NAME || '❌ NOT SET');
+console.log('- DB_PASSWORD:', process.env.DB_PASSWORD ? '✅ SET' : '❌ NOT SET');
+console.log('='.repeat(50));
+
 if (!process.env.DB_USER) {
-  console.error('WARNING: DB_USER is not defined in environment variables!');
+  console.error('❌ ERROR: DB_USER is not defined in environment variables!');
 }
 
 const pool = mysql.createPool({
@@ -24,13 +38,19 @@ const pool = mysql.createPool({
 });
 
 // Test the connection
+console.log('🔄 Testing database connection...');
 pool.getConnection()
   .then(connection => {
-    console.log('Database connected successfully');
+    console.log('✅ Database connected successfully');
+    console.log(`   Host: ${process.env.DB_HOST}`);
+    console.log(`   Database: ${process.env.DB_NAME}`);
     connection.release();
   })
   .catch(err => {
-    console.error('Database connection failed:', err.message);
+    console.error('❌ Database connection failed:');
+    console.error('   Error:', err.message);
+    console.error('   Code:', err.code);
+    console.error('   Stack:', err.stack);
   });
 
 // Handle connection errors gracefully without crashing

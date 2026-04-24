@@ -56,7 +56,7 @@ const Categories = () => {
   return (
     <div className="container py-10 md:py-14">
       <Helmet>
-        <title>Categories — Conquer Top 100</title>
+        <title>Categories — VoteVault</title>
         <meta name="description" content="Browse servers by category. Find MMORPG, PvP, PvE, and more gaming categories." />
       </Helmet>
 

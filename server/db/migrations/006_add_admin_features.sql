@@ -9,20 +9,18 @@ CREATE TABLE IF NOT EXISTS user_bans (
   ban_type ENUM('temporary', 'permanent') NOT NULL,
   expires_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_user_bans_user (user_id),
+  KEY idx_user_bans_expires (expires_at),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_bans_user ON user_bans (user_id);
-CREATE INDEX IF NOT EXISTS idx_user_bans_expires ON user_bans (expires_at);
+-- Add is_banned flag to users table (ignore if exists)
+ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT FALSE;
 
--- Add is_banned flag to users table
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
-
--- Add deleted_by_admin to reviews
+-- Add deleted_by_admin to reviews (ignore if exists)
 ALTER TABLE reviews
-  ADD COLUMN IF NOT EXISTS deleted_by_admin BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS admin_delete_reason TEXT;
+  ADD COLUMN deleted_by_admin BOOLEAN DEFAULT FALSE,
+  ADD COLUMN admin_delete_reason TEXT;
 
 SELECT 'Admin features tables created successfully!' as status;

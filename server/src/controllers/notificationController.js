@@ -1,4 +1,4 @@
-import db from '../config/database.js';
+import db from '../db.js';
 import { sendEmail } from '../utils/email.js';
 import logger from '../utils/logger.js';
 

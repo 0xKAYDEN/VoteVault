@@ -4,41 +4,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === Conquer Top 100 — Obsidian + Crimson Liquid Glass === */
+/* === Conquer Top 100 — Dynamic Theme System === */
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 240 12% 4%;
-    --foreground: 0 0% 96%;
+    /* Theme colors - dynamically set by ThemeContext */
+    --color-primary: #dc2626;
+    --color-primaryHover: #b91c1c;
+    --color-primaryLight: #fecaca;
+    --color-background: #0a0a0a;
+    --color-backgroundLight: #1a1a1a;
+    --color-surface: #262626;
+    --color-surfaceHover: #404040;
+    --color-text: #ffffff;
+    --color-textMuted: #a3a3a3;
+    --color-border: #404040;
+    --color-accent: #dc2626;
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-gradient: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    --color-glow: 0 0 20px rgba(220, 38, 38, 0.5);
 
-    --card: 240 14% 7%;
-    --card-foreground: 0 0% 96%;
-
-    --popover: 240 14% 6%;
-    --popover-foreground: 0 0% 96%;
-
-    /* Crimson primary */
+    /* Tailwind compatibility - map to theme colors */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
     --primary: 0 78% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 0 90% 65%;
-    --primary-deep: 0 70% 38%;
-
-    --secondary: 240 10% 12%;
-    --secondary-foreground: 0 0% 96%;
-
-    --muted: 240 8% 14%;
-    --muted-foreground: 240 5% 60%;
-
-    --accent: 0 70% 50%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 78% 55%;
     --accent-foreground: 0 0% 100%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 240 8% 18%;
-    --input: 240 10% 12%;
+    --border: 0 0% 25%;
+    --input: 0 0% 15%;
     --ring: 0 78% 55%;
-
     --radius: 0.875rem;
 
     /* Liquid glass tokens */
@@ -74,17 +80,39 @@
 @layer base {
   * { @apply border-border; }
   html { color-scheme: dark; }
+  html.white { color-scheme: light; }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  .dark body, body {
     background:
       radial-gradient(1000px 600px at 10% -10%, hsl(0 80% 30% / 0.18), transparent 60%),
       radial-gradient(800px 500px at 90% 10%, hsl(280 60% 25% / 0.15), transparent 60%),
       radial-gradient(900px 700px at 50% 110%, hsl(15 80% 35% / 0.18), transparent 60%),
       hsl(var(--background));
-    background-attachment: fixed;
-    min-height: 100vh;
   }
+
+  .blue-black body {
+    background:
+      radial-gradient(1000px 600px at 10% -10%, hsl(210 100% 40% / 0.2), transparent 60%),
+      radial-gradient(800px 500px at 90% 10%, hsl(200 80% 35% / 0.15), transparent 60%),
+      radial-gradient(900px 700px at 50% 110%, hsl(220 90% 30% / 0.18), transparent 60%),
+      hsl(var(--background));
+  }
+
+  .white body {
+    background:
+      radial-gradient(1000px 600px at 10% -10%, hsl(0 80% 95% / 0.3), transparent 60%),
+      radial-gradient(800px 500px at 90% 10%, hsl(280 60% 90% / 0.2), transparent 60%),
+      radial-gradient(900px 700px at 50% 110%, hsl(15 80% 92% / 0.25), transparent 60%),
+      hsl(var(--background));
+  }
+
   h1, h2, h3, h4 { font-family: 'Rajdhani', 'Inter', sans-serif; letter-spacing: -0.01em; }
   .font-display { font-family: 'Rajdhani', sans-serif; }
   .font-mono-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
@@ -146,6 +174,7 @@
   .glow-crimson { box-shadow: var(--shadow-crimson); }
   .glow-crimson-strong { box-shadow: var(--shadow-crimson-strong); }
   .glow-gold { box-shadow: var(--shadow-gold); }
+  .glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
 
   .pulse-dot {
     @apply relative inline-flex h-2.5 w-2.5 rounded-full;
@@ -155,6 +184,28 @@
     @apply absolute inset-0 rounded-full animate-ping opacity-75;
     background: inherit;
   }
+
+  /* Enhanced hover effects */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-2xl;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 30px var(--color-primary), 0 0 60px var(--color-primary);
+  }
+
+  /* Staggered animations */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
 }
 
 @keyframes shimmer {
@@ -168,4 +219,18 @@
 @keyframes count-up {
   from { transform: translateY(8px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px var(--color-glow); }
+  50% { box-shadow: 0 0 40px var(--color-glow), 0 0 60px var(--color-glow); }
+}
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
 }

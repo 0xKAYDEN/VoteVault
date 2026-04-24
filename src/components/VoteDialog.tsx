@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Shield, RefreshCw, Loader2 } from "lucide-react";
+import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 
 type Challenge = "math" | "slider" | "click_sequence";
 
@@ -37,6 +38,7 @@ function fingerprint(): string {
 
 export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess }: VoteDialogProps) {
   const { user } = useAuth();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [challenge, setChallenge] = useState<Challenge>("math");
   const [submitting, setSubmitting] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState<number | null>(null);
@@ -116,13 +118,21 @@ export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess
       newChallenge();
       return;
     }
+
+    if (!executeRecaptcha) {
+      toast.error("reCAPTCHA not loaded yet");
+      return;
+    }
+
     setSubmitting(true);
     const fp = fingerprint();
     try {
+      const token = await executeRecaptcha("vote");
       await api.votes.submit({
         server_id: serverId,
         voter_fingerprint: fp,
         challenge_type_passed: challenge,
+        recaptchaToken: token,
       });
       toast.success(`Vote recorded for ${serverName}!`);
       onOpenChange(false);

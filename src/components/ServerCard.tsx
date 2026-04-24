@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
-import { Crown, Star, Users, Zap, Eye, ShieldCheck } from "lucide-react";
+import { Crown, Star, Users, Zap, Eye, ShieldCheck, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth.context";
 
 export interface ServerRow {
   id: number;
@@ -20,25 +24,86 @@ export interface ServerRow {
   rating_avg: number;
   rating_count: number;
   player_count: number;
+  active_players?: number;
   profile_visits: number;
   features?: string | null;
   events_time?: string | null;
   upcoming_updates?: string | null;
+  subscription_plan?: string | null;
+  subscription_expires_at?: string | null;
 }
 
 export function ServerCard({ server, rank }: { server: ServerRow; rank: number }) {
+  const { user } = useAuth();
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+
   const isTop3 = rank <= 3;
   const accentBorder =
     rank === 1 ? "border-l-[hsl(45_95%_55%)]" :
     rank === 2 ? "border-l-[hsl(0_0%_75%)]" :
     rank === 3 ? "border-l-[hsl(28_70%_50%)]" : "border-l-primary/60";
 
+  // Check if subscription is active
+  const isPremium = server.subscription_plan && server.subscription_expires_at &&
+    new Date(server.subscription_expires_at) > new Date();
+
+  const getPremiumBadge = () => {
+    if (!isPremium) return null;
+
+    const plan = server.subscription_plan?.toLowerCase();
+    if (plan === 'basic') {
+      return { label: 'Basic', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' };
+    } else if (plan === 'pro') {
+      return { label: 'Pro', color: 'bg-purple-500/20 text-purple-400 border-purple-500/50' };
+    } else if (plan === 'enterprise') {
+      return { label: 'Enterprise', color: 'bg-amber-500/20 text-amber-400 border-amber-500/50' };
+    }
+    return null;
+  };
+
+  const premiumBadge = getPremiumBadge();
+
+  useEffect(() => {
+    if (user) {
+      api.favorites.check(server.id)
+        .then(data => setIsFavorited(data.isFavorited))
+        .catch(() => {});
+    }
+
+    // Fetch server tags
+    api.tags.getServerTags(server.id)
+      .then(data => setTags(data))
+      .catch(() => {});
+  }, [user, server.id]);
+
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Please log in to favorite servers");
+      return;
+    }
+
+    setFavoriteLoading(true);
+    try {
+      const result = await api.favorites.toggle(server.id);
+      setIsFavorited(result.isFavorited);
+      toast.success(result.message);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle favorite");
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
   return (
     <div
       className={cn(
-        "glass glass-hover rounded-xl overflow-hidden border-l-4 group",
+        "glass rounded-xl overflow-hidden border-l-4 group transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl",
         accentBorder,
-        isTop3 && "shadow-[0_0_30px_hsl(0_80%_50%/0.15)]"
+        isTop3 && "shadow-[0_0_30px_hsl(0_80%_50%/0.15)] hover:shadow-[0_0_50px_hsl(0_80%_50%/0.3)]",
+        "animate-fade-in"
       )}
     >
       <div className="flex flex-col sm:flex-row">
@@ -84,6 +149,14 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
                   {server.is_verified && (
                     <ShieldCheck className="h-4 w-4 text-primary-glow shrink-0" title="Verified Server" />
                   )}
+                  {premiumBadge && (
+                    <span className={cn(
+                      "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border font-semibold shrink-0",
+                      premiumBadge.color
+                    )}>
+                      {premiumBadge.label}
+                    </span>
+                  )}
                 </div>
               </Link>
               <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{server.short_description}</p>
@@ -98,6 +171,16 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
             {server.version && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10">v{server.version}</span>}
             {server.rate && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 border border-primary/30 text-primary-glow">{server.rate}</span>}
             {server.region && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10">{server.region}</span>}
+            {tags.slice(0, 3).map((tag, idx) => (
+              <span key={idx} className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                {tag}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                +{tags.length - 3}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between gap-3">
@@ -111,10 +194,25 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
                 <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="font-mono-num">{server.profile_visits.toLocaleString()}</span>
               </span>
-              <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /><span className="font-mono-num">{server.player_count}</span></span>
+              <span className="flex items-center gap-1.5" title="Active players online now">
+                <Users className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="font-mono-num text-emerald-400 font-semibold">{server.active_players || 0}</span>
+              </span>
               <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-primary" /><span className="font-mono-num text-foreground font-bold">{server.vote_count.toLocaleString()}</span> votes</span>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleFavoriteToggle}
+                disabled={favoriteLoading}
+                className={cn(
+                  "h-8 w-8",
+                  isFavorited && "text-red-500 hover:text-red-600"
+                )}
+              >
+                <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
+              </Button>
               <Button variant="outline" size="sm" asChild><Link to={`/server/${server.slug}`}>Details</Link></Button>
               <Button variant="vote" size="sm" asChild><Link to={`/server/${server.slug}?vote=1`}>Vote</Link></Button>
             </div>

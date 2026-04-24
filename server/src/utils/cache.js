@@ -108,6 +108,52 @@ export const cache = {
       logger.error(`Cache TTL error for key ${key}:`, err);
       return -1;
     }
+  },
+
+  // Increment a counter (useful for rate limiting)
+  incr: async (key) => {
+    try {
+      if (!redisClient.isOpen) return 0;
+      return await redisClient.incr(key);
+    } catch (err) {
+      logger.error(`Cache incr error for key ${key}:`, err);
+      return 0;
+    }
+  },
+
+  // Set with expiry (EX) - alias for set
+  setex: async (key, seconds, value) => {
+    return await cache.set(key, value, seconds);
+  },
+
+  // Get multiple keys at once
+  mget: async (keys) => {
+    try {
+      if (!redisClient.isOpen) return [];
+      const values = await redisClient.mGet(keys);
+      return values.map(v => v ? JSON.parse(v) : null);
+    } catch (err) {
+      logger.error(`Cache mget error:`, err);
+      return [];
+    }
+  },
+
+  // Set multiple keys at once
+  mset: async (keyValuePairs, ttl = 300) => {
+    try {
+      if (!redisClient.isOpen) return false;
+      const pipeline = redisClient.multi();
+
+      for (const [key, value] of Object.entries(keyValuePairs)) {
+        pipeline.setEx(key, ttl, JSON.stringify(value));
+      }
+
+      await pipeline.exec();
+      return true;
+    } catch (err) {
+      logger.error(`Cache mset error:`, err);
+      return false;
+    }
   }
 };
 

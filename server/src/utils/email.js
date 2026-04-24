@@ -24,7 +24,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 
   try {
     await transporter.sendMail({
-      from: `"Conquer Toplist" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"VoteVault" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to,
       subject,
       html,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -42,7 +42,7 @@ const ServerProfile = () => {
   const [voteHistory, setVoteHistory] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!slug) return;
     try {
       const data = await api.servers.getBySlug(slug);
@@ -57,7 +57,7 @@ const ServerProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
 
   const loadReviews = async (serverId: number, page: number = 1) => {
     setReviewsLoading(true);
@@ -134,7 +134,7 @@ const ServerProfile = () => {
     }
   } satisfies ChartConfig;
 
-  useEffect(() => { load(); }, [slug]);
+  useEffect(() => { load(); }, [slug, load]);
 
   useEffect(() => {
     if (params.get("vote") === "1" && server && user) {
@@ -205,9 +205,9 @@ const ServerProfile = () => {
   return (
     <div className="container py-8 md:py-12">
       <Helmet>
-        <title>{`${server.name} — Conquer Top 100`}</title>
+        <title>{`${server.name} — VoteVault`}</title>
         <meta name="description" content={server.short_description} />
-        <meta property="og:title" content={`${server.name} — Conquer Top 100`} />
+        <meta property="og:title" content={`${server.name} — VoteVault`} />
         <meta property="og:description" content={server.short_description} />
         {server.banner_url && <meta property="og:image" content={server.banner_url} />}
         <meta property="og:type" content="website" />

@@ -16,7 +16,7 @@ const items = [
 const DashboardLayout = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  useEffect(() => { document.title = "Dashboard — Conquer Top 100"; }, []);
+  useEffect(() => { document.title = "Dashboard — VoteVault"; }, []);
   useEffect(() => { if (!loading && !user) navigate("/auth"); }, [loading, user, navigate]);
 
   if (loading || !user) return <div className="container py-20"><div className="glass rounded-2xl h-64 shimmer" /></div>;

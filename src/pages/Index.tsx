@@ -24,9 +24,7 @@ const Index = () => {
       try {
         const [serversData, statsData] = await Promise.all([
           api.servers.getAll(),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/stats/total-visits`)
-            .then(r => r.json())
-            .catch(() => ({ total_visits: 0 }))
+          api.stats.getSiteStats().catch(() => ({ total_visits: 0 }))
         ]);
         setServers(serversData || []);
         setTotalVisits(statsData.total_visits || 0);
@@ -66,37 +64,43 @@ const Index = () => {
   return (
     <div className="container py-10 md:py-14">
       <Helmet>
-        <title>Conquer Top 100 — Premium Conquer Online Private Server Toplist</title>
-        <meta name="description" content="Discover and vote for the best Conquer Online private servers. Real-time rankings, verified votes, and player reviews." />
-        <meta property="og:title" content="Conquer Top 100 — Premium Conquer Online Private Server Toplist" />
-        <meta property="og:description" content="Discover and vote for the best Conquer Online private servers. Real-time rankings, verified votes, and player reviews." />
+        <title>VoteVault — Premium Server Rankings & Toplist</title>
+        <meta name="description" content="Discover and vote for the best servers. Real-time rankings, verified votes, and player reviews." />
+        <meta property="og:title" content="VoteVault — Premium Server Rankings & Toplist" />
+        <meta property="og:description" content="Discover and vote for the best servers. Real-time rankings, verified votes, and player reviews." />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
 
       {/* Hero */}
-      <section className="text-center mb-12 md:mb-16 animate-fade-in">
-        <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 text-xs uppercase tracking-widest text-muted-foreground">
-          <Sparkles className="h-3 w-3 text-primary" />
-          The premium Conquer Online toplist
+      <section className="text-center mb-12 md:mb-16 animate-fade-in relative">
+        {/* Animated background orbs */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-float-orb" />
+          <div className="absolute top-20 right-1/4 w-80 h-80 bg-accent/15 rounded-full blur-3xl animate-float-orb" style={{ animationDelay: '2s' }} />
+        </div>
+
+        <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 mb-6 text-xs uppercase tracking-widest text-muted-foreground animate-slide-down">
+          <Sparkles className="h-3 w-3 text-primary animate-pulse" />
+          The premium server ranking platform
         </div>
         <h1 className="font-display font-bold uppercase tracking-tight leading-[0.95]
-                       text-5xl md:text-7xl lg:text-8xl mb-4">
-          <span className="block text-gradient">CONQUER</span>
-          <span className="block shimmer text-crimson-gradient">TOP 100</span>
+                       text-5xl md:text-7xl lg:text-8xl mb-4 animate-scale-in">
+          <span className="block text-gradient">VOTE</span>
+          <span className="block shimmer text-crimson-gradient bg-clip-text">VAULT</span>
         </h1>
-        <p className="text-muted-foreground max-w-xl mx-auto text-base md:text-lg">
-          Discover, vote, and dominate. The toplist for serious Conquer Online private servers.
+        <p className="text-muted-foreground max-w-xl mx-auto text-base md:text-lg animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          Discover, vote, and dominate. The ultimate server ranking platform.
         </p>
 
         {/* Live stats */}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <StatPill icon={<Trophy className="h-4 w-4" />} label="Servers" value={servers.length} />
-          <StatPill icon={<Zap className="h-4 w-4" />} label="Total Votes" value={totalVotes} accent />
-          <StatPill icon={<Users className="h-4 w-4" />} label="Players Online" value={totalPlayers} />
-          <StatPill icon={<BadgeCheck className="h-4 w-4" />} label="Verified" value={verifiedCount} />
-          <StatPill icon={<Eye className="h-4 w-4" />} label="Total Visits" value={totalVisits} />
-          {newest && <StatPill icon={<Sparkles className="h-4 w-4" />} label="Newest" value={newest.name} text />}
+          <StatPill icon={<Trophy className="h-4 w-4" />} label="Servers" value={servers.length} delay="0.1s" />
+          <StatPill icon={<Zap className="h-4 w-4" />} label="Total Votes" value={totalVotes} accent delay="0.2s" />
+          <StatPill icon={<Users className="h-4 w-4" />} label="Players Online" value={totalPlayers} delay="0.3s" />
+          <StatPill icon={<BadgeCheck className="h-4 w-4" />} label="Verified" value={verifiedCount} delay="0.4s" />
+          <StatPill icon={<Eye className="h-4 w-4" />} label="Total Visits" value={totalVisits} delay="0.5s" />
+          {newest && <StatPill icon={<Sparkles className="h-4 w-4" />} label="Newest" value={newest.name} text delay="0.6s" />}
         </div>
       </section>
 
@@ -206,15 +210,15 @@ const Index = () => {
   );
 };
 
-function StatPill({ icon, label, value, accent, text }: { icon: React.ReactNode; label: string; value: number | string; accent?: boolean; text?: boolean }) {
+function StatPill({ icon, label, value, accent, text, delay }: { icon: React.ReactNode; label: string; value: number | string; accent?: boolean; text?: boolean; delay?: string }) {
   return (
-    <div className="glass rounded-full pl-3 pr-5 py-2 flex items-center gap-3">
-      <div className={`grid h-7 w-7 place-items-center rounded-full ${accent ? "bg-gradient-crimson" : "bg-white/5 border border-white/10"}`}>
+    <div className="glass rounded-full pl-3 pr-5 py-2 flex items-center gap-3 hover-lift cursor-default animate-fade-in" style={{ animationDelay: delay }}>
+      <div className={`grid h-7 w-7 place-items-center rounded-full transition-all ${accent ? "bg-gradient-crimson glow-pulse" : "bg-white/5 border border-white/10 hover:border-primary/50"}`}>
         {icon}
       </div>
       <div className="text-left">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground leading-none">{label}</div>
-        <div className={`font-mono-num font-bold leading-tight ${accent ? "text-primary-glow" : ""} ${text ? "text-sm" : "text-base"}`}>
+        <div className={`font-mono-num font-bold leading-tight transition-colors ${accent ? "text-primary-glow" : "group-hover:text-primary"} ${text ? "text-sm" : "text-base"}`}>
           {typeof value === "number" ? value.toLocaleString() : value}
         </div>
       </div>

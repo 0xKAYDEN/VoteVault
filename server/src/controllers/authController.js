@@ -5,6 +5,8 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import pool from '../db.js';
 import { sendEmail } from '../utils/email.js';
+import { cache } from '../utils/cache.js';
+import logger from '../utils/logger.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -67,12 +69,22 @@ export const googleLogin = async (req, res) => {
 };
 
 export const register = async (req, res) => {
-  const { email, password, username, display_name } = req.body;
+  const { email, password, username, display_name, recaptchaToken } = req.body;
+  console.log("📝 Registration attempt:", { email, username });
+
+  if (!recaptchaToken) {
+    return res.status(400).json({ message: 'reCAPTCHA token is required' });
+  }
 
   try {
     const [existingUsers] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUsers.length > 0) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    const [existingUsername] = await pool.query('SELECT * FROM profiles WHERE username = ?', [username]);
+    if (existingUsername.length > 0) {
+      return res.status(400).json({ message: 'Username already taken' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -105,7 +117,7 @@ export const register = async (req, res) => {
       const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/verify-email?token=${verification_token}`;
       await sendEmail({
         to: email,
-        subject: 'Verify your email - Conquer Toplist',
+        subject: 'Verify your email - VoteVault',
         html: `<p>Please verify your email by clicking <a href="${verifyUrl}">here</a>.</p>`,
       });
 
@@ -135,12 +147,17 @@ export const verifyEmail = async (req, res) => {
     res.json({ message: 'Email verified successfully' });
   } catch (err) {
     console.error(err);
+  console.log("🔐 Login attempt:", { email });
     res.status(500).json({ message: 'Server error during email verification' });
   }
 };
 
 export const login = async (req, res) => {
-  const { email, password, twoFactorToken } = req.body;
+  const { email, password, twoFactorToken, recaptchaToken } = req.body;
+
+  if (!recaptchaToken) {
+    return res.status(400).json({ message: 'reCAPTCHA token is required' });
+  }
 
   try {
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -221,7 +238,7 @@ export const forgotPassword = async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
     await sendEmail({
       to: email,
-      subject: 'Password Reset - Conquer Toplist',
+      subject: 'Password Reset - VoteVault',
       html: `<p>You requested a password reset. Click <a href="${resetUrl}">here</a> to reset it. Link expires in 1 hour.</p>`,
     });
 
@@ -261,6 +278,16 @@ export const resetPassword = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
+    // Try cache first
+    const cacheKey = `user:profile:${req.user.id}`;
+    const cachedProfile = await cache.get(cacheKey);
+
+    if (cachedProfile) {
+      logger.info(`Cache HIT: ${cacheKey}`);
+      return res.json(cachedProfile);
+    }
+
+    logger.info(`Cache MISS: ${cacheKey}`);
     const [profiles] = await pool.query(
       `SELECT p.*, u.email, GROUP_CONCAT(r.role) as roles, u.is_verified, u.google_id
        FROM profiles p
@@ -278,9 +305,12 @@ export const getMe = async (req, res) => {
     const profile = profiles[0];
     profile.roles = profile.roles ? profile.roles.split(',') : [];
 
+    // Cache for 5 minutes
+    await cache.set(cacheKey, profile, 300);
+
     res.json(profile);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching profile:', err);
     res.status(500).json({ message: 'Server error fetching profile' });
   }
 };
@@ -294,9 +324,14 @@ export const updateProfile = async (req, res) => {
       'UPDATE profiles SET display_name = ?, avatar_url = ?, bio = ? WHERE id = ?',
       [display_name, avatar_url, bio, userId]
     );
+
+    // Invalidate user profile cache
+    await cache.del(`user:profile:${userId}`);
+
+    logger.info(`Profile updated for user ${userId}`);
     res.json({ message: 'Profile updated successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating profile:', err);
     res.status(500).json({ message: 'Server error updating profile' });
   }
 };

@@ -30,16 +30,8 @@ export function NotificationBell() {
   const loadNotifications = async () => {
     try {
       const [notifs, countData] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/notifications`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }).then(r => r.json()),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/notifications/unread-count`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }).then(r => r.json())
+        api.notifications.getAll(),
+        api.notifications.getUnreadCount()
       ]);
 
       setNotifications(notifs);
@@ -57,12 +49,7 @@ export function NotificationBell() {
 
   const markAsRead = async (notificationId: number) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/notifications/${notificationId}/read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.notifications.markAsRead(notificationId);
       loadNotifications();
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -71,12 +58,7 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/notifications/read-all`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.notifications.markAllAsRead();
       loadNotifications();
       toast.success('All notifications marked as read');
     } catch (error) {
@@ -86,12 +68,7 @@ export function NotificationBell() {
 
   const deleteNotification = async (notificationId: number) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/notifications/${notificationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.notifications.delete(notificationId);
       loadNotifications();
     } catch (error) {
       toast.error('Failed to delete notification');

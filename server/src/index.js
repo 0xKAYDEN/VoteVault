@@ -1,13 +1,26 @@
+// IMPORTANT: Load environment variables FIRST before any other imports
 import dotenv from 'dotenv';
-dotenv.config();
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root (two levels up from server/src)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// Verify critical env vars are loaded
+console.log('Environment check:');
+console.log('- DB_HOST:', process.env.DB_HOST || 'NOT SET');
+console.log('- DB_USER:', process.env.DB_USER || 'NOT SET');
+console.log('- DB_NAME:', process.env.DB_NAME || 'NOT SET');
+console.log('- RECAPTCHA_SECRET_KEY:', process.env.RECAPTCHA_SECRET_KEY ? 'SET' : 'NOT SET');
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import logger from './utils/logger.js';
 import { trackVisit } from './middleware/statsMiddleware.js';
@@ -27,12 +40,36 @@ import chatRoutes from './routes/chatRoutes.js';
 import twoFactorRoutes from './routes/twoFactorRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import userExperienceRoutes from './routes/userExperienceRoutes.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import serverEnhancementRoutes from './routes/serverEnhancementRoutes.js';
+import serverOwnerRoutes from './routes/serverOwnerRoutes.js';
+import userPreferencesRoutes from './routes/userPreferencesRoutes.js';
+import achievementRoutes from './routes/achievementRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Request logging middleware - log every incoming request
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.info(`→ ${req.method} ${req.url} - IP: ${req.ip}`);
+
+  // Log request body for POST/PUT/PATCH (excluding sensitive data)
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const sanitizedBody = { ...req.body };
+    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.recaptchaToken) sanitizedBody.recaptchaToken = '[REDACTED]';
+    logger.info(`  Body: ${JSON.stringify(sanitizedBody)}`);
+  }
+
+  // Log response
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info(`← ${req.method} ${req.url} - ${res.statusCode} - ${duration}ms`);
+  });
+
+  next();
+});
 
 // Logging Middleware
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
@@ -97,16 +134,25 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/user-experience', userExperienceRoutes);
+app.use('/api/server-enhancements', serverEnhancementRoutes);
+app.use('/api/server-owner', serverOwnerRoutes);
+app.use('/api/user-preferences', userPreferencesRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Conquer Top 100 Backend is running' });
+  res.json({ status: 'ok', message: 'VoteVault Backend is running' });
 });
 
 // Centralized Error Handling
 app.use((err, req, res, next) => {
-  logger.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip} - ${err.stack}`);
-  
+  logger.error(`❌ ERROR: ${err.status || 500} - ${err.message}`);
+  logger.error(`   URL: ${req.originalUrl}`);
+  logger.error(`   Method: ${req.method}`);
+  logger.error(`   IP: ${req.ip}`);
+  logger.error(`   Stack: ${err.stack}`);
+
   const status = err.statusCode || 500;
   res.status(status).json({
     error: {
@@ -116,16 +162,38 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('🔥 Unhandled Promise Rejection:', reason);
+  logger.error('   Promise:', promise);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('💥 Uncaught Exception:', error);
+  logger.error('   Stack:', error.stack);
+  // Don't exit the process, just log it
+});
+
 export default app;
 
 if (process.env.NODE_ENV !== 'test') {
   const httpServer = createServer(app);
 
   // Initialize Socket.io
+  logger.info('🔌 Initializing Socket.io...');
   initializeSocket(httpServer);
 
   httpServer.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}`);
-    logger.info(`WebSocket server initialized`);
+    logger.info('='.repeat(50));
+    logger.info(`🚀 VoteVault Server Started`);
+    logger.info(`   Port: ${PORT}`);
+    logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`   Time: ${new Date().toISOString()}`);
+    logger.info('='.repeat(50));
+  });
+
+  httpServer.on('error', (error) => {
+    logger.error('❌ Server error:', error);
   });
 }

@@ -3,7 +3,15 @@
     "allow": [
       "Bash(npm install *)",
       "Bash(npm list *)",
-      "Bash(mysql *)"
+      "Bash(mysql *)",
+      "Bash(npm run *)",
+      "Bash(timeout 5 bash *)",
+      "Bash(curl -s http://localhost:5000/health)",
+      "Bash(node runMigration.js db/migrations/011_add_active_players_and_social.sql)",
+      "Bash(npm start *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(netstat -ano)",
+      "Bash(git add *)"
     ]
   }
 }

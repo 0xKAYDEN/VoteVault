@@ -1,34 +1,56 @@
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { invalidateCache } from '../middleware/cache.js';
+import { cache } from '../utils/cache.js';
+import logger from '../utils/logger.js';
 
 export const getServers = async (req, res) => {
   try {
     const { status = 'approved', search, region, version } = req.query;
-    let query = 'SELECT * FROM servers WHERE status = ?';
+
+    // Create cache key based on query params
+    const cacheKey = `servers:list:${status}:${search || 'all'}:${region || 'all'}:${version || 'all'}`;
+
+    // Try to get from cache first
+    const cachedServers = await cache.get(cacheKey);
+    if (cachedServers) {
+      logger.info(`Cache HIT: ${cacheKey}`);
+      return res.json(cachedServers);
+    }
+
+    logger.info(`Cache MISS: ${cacheKey}`);
+
+    let query = `SELECT s.*, u.subscription_plan, u.subscription_expires_at
+                 FROM servers s
+                 LEFT JOIN users u ON s.owner_id = u.id
+                 WHERE s.status = ?`;
     const params = [status];
 
     if (search) {
-      query += ' AND (name LIKE ? OR short_description LIKE ?)';
+      query += ' AND (s.name LIKE ? OR s.short_description LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (region && region !== 'all') {
-      query += ' AND region = ?';
+      query += ' AND s.region = ?';
       params.push(region);
     }
 
     if (version && version !== 'all') {
-      query += ' AND version = ?';
+      query += ' AND s.version = ?';
       params.push(version);
     }
 
-    query += ' ORDER BY vote_count DESC';
+    query += ' ORDER BY s.vote_count DESC';
 
     const [rows] = await pool.query(query, params);
+
+    // Cache for 5 minutes (300 seconds)
+    await cache.set(cacheKey, rows, 300);
+
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching servers:', err);
     res.status(500).json({ message: 'Error fetching servers' });
   }
 };
@@ -36,13 +58,28 @@ export const getServers = async (req, res) => {
 export const getServerBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
+    // Try cache first
+    const cacheKey = `server:slug:${slug}`;
+    const cachedServer = await cache.get(cacheKey);
+
+    if (cachedServer) {
+      logger.info(`Cache HIT: ${cacheKey}`);
+      return res.json(cachedServer);
+    }
+
+    logger.info(`Cache MISS: ${cacheKey}`);
     const [rows] = await pool.query('SELECT * FROM servers WHERE slug = ?', [slug]);
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Server not found' });
     }
+
+    // Cache for 10 minutes
+    await cache.set(cacheKey, rows[0], 600);
+
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching server by slug:', err);
     res.status(500).json({ message: 'Error fetching server' });
   }
 };
@@ -50,31 +87,50 @@ export const getServerBySlug = async (req, res) => {
 export const getServerById = async (req, res) => {
   const { id } = req.params;
   try {
+    // Try cache first
+    const cacheKey = `server:id:${id}`;
+    const cachedServer = await cache.get(cacheKey);
+
+    if (cachedServer) {
+      logger.info(`Cache HIT: ${cacheKey}`);
+      return res.json(cachedServer);
+    }
+
+    logger.info(`Cache MISS: ${cacheKey}`);
     const [rows] = await pool.query('SELECT * FROM servers WHERE id = ?', [id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Server not found' });
     }
+
+    // Cache for 10 minutes
+    await cache.set(cacheKey, rows[0], 600);
+
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching server by ID:', err);
     res.status(500).json({ message: 'Error fetching server by ID' });
   }
 };
 
 export const createServer = async (req, res) => {
-  const { name, slug, short_description, long_description, ...rest } = req.body;
+  const { name, slug, short_description, long_description, recaptchaToken, ...rest } = req.body;
   const owner_id = req.user.id;
+
+  if (!recaptchaToken) {
+    return res.status(400).json({ message: 'reCAPTCHA token is required' });
+  }
 
   try {
     const public_id = uuidv4();
     const [result] = await pool.query(
-      `INSERT INTO servers (public_id, owner_id, name, slug, short_description, long_description, 
-        logo_url, banner_url, website_url, discord_url, version, rate, region, 
-        features, events_time, upcoming_updates) 
+      `INSERT INTO servers (public_id, owner_id, name, slug, short_description, long_description,
+        logo_url, banner_url, website_url, discord_url, version, rate, region,
+        features, events_time, upcoming_updates)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         public_id, owner_id, name, slug, short_description, long_description,
-        rest.logo_url, rest.banner_url, rest.website_url, rest.discord_url, 
+        rest.logo_url, rest.banner_url, rest.website_url, rest.discord_url,
         rest.version, rest.rate, rest.region,
         rest.features, rest.events_time, rest.upcoming_updates
       ]
@@ -130,10 +186,13 @@ export const updateServer = async (req, res) => {
     // Invalidate caches
     await invalidateCache('cache:/api/servers*');
     await invalidateCache('cache:/api/categories/*');
+    await cache.delPattern('servers:list:*');
+    await cache.del(`server:id:${id}`);
+    await cache.del(`server:slug:${servers[0].slug}`);
 
     res.json({ message: 'Server updated successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating server:', err);
     res.status(500).json({ message: 'Error updating server' });
   }
 };
@@ -142,7 +201,7 @@ export const deleteServer = async (req, res) => {
   const { id } = req.params;
   const owner_id = req.user.id;
   try {
-    const [rows] = await pool.query('SELECT owner_id FROM servers WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT owner_id, slug FROM servers WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ message: 'Server not found' });
     if (rows[0].owner_id !== owner_id) return res.status(403).json({ message: 'Unauthorized' });
 
@@ -151,10 +210,14 @@ export const deleteServer = async (req, res) => {
     // Invalidate caches
     await invalidateCache('cache:/api/servers*');
     await invalidateCache('cache:/api/categories/*');
+    await cache.delPattern('servers:list:*');
+    await cache.del(`server:id:${id}`);
+    await cache.del(`server:slug:${rows[0].slug}`);
 
+    logger.info(`Server deleted: ${id} by user ${owner_id}`);
     res.json({ message: 'Server deleted successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error deleting server:', err);
     res.status(500).json({ message: 'Error deleting server' });
   }
 };
@@ -163,9 +226,13 @@ export const incrementVisits = async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('UPDATE servers SET profile_visits = profile_visits + 1 WHERE id = ?', [id]);
+
+    // Invalidate server cache (visits count changed)
+    await cache.del(`server:id:${id}`);
+
     res.json({ message: 'Visit recorded' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error recording visit:', err);
     res.status(500).json({ message: 'Error recording visit' });
   }
 };

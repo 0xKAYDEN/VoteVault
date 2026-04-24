@@ -1,0 +1,109 @@
+{
+  "themes": {
+    "crimson": {
+      "name": "Crimson",
+      "colors": {
+        "primary": "#dc2626",
+        "primaryHover": "#b91c1c",
+        "primaryLight": "#fecaca",
+        "background": "#0a0a0a",
+        "backgroundLight": "#1a1a1a",
+        "surface": "#262626",
+        "surfaceHover": "#404040",
+        "text": "#ffffff",
+        "textMuted": "#a3a3a3",
+        "border": "#404040",
+        "accent": "#dc2626",
+        "success": "#22c55e",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "gradient": "linear-gradient(135deg, #dc2626 0%, #991b1b 100%)",
+        "glow": "0 0 20px rgba(220, 38, 38, 0.5)"
+      }
+    },
+    "ocean": {
+      "name": "Ocean Blue",
+      "colors": {
+        "primary": "#0ea5e9",
+        "primaryHover": "#0284c7",
+        "primaryLight": "#bae6fd",
+        "background": "#0a0a0a",
+        "backgroundLight": "#1a1a1a",
+        "surface": "#262626",
+        "surfaceHover": "#404040",
+        "text": "#ffffff",
+        "textMuted": "#a3a3a3",
+        "border": "#404040",
+        "accent": "#0ea5e9",
+        "success": "#22c55e",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "gradient": "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)",
+        "glow": "0 0 20px rgba(14, 165, 233, 0.5)"
+      }
+    },
+    "emerald": {
+      "name": "Emerald",
+      "colors": {
+        "primary": "#10b981",
+        "primaryHover": "#059669",
+        "primaryLight": "#a7f3d0",
+        "background": "#0a0a0a",
+        "backgroundLight": "#1a1a1a",
+        "surface": "#262626",
+        "surfaceHover": "#404040",
+        "text": "#ffffff",
+        "textMuted": "#a3a3a3",
+        "border": "#404040",
+        "accent": "#10b981",
+        "success": "#22c55e",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "gradient": "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+        "glow": "0 0 20px rgba(16, 185, 129, 0.5)"
+      }
+    },
+    "purple": {
+      "name": "Purple",
+      "colors": {
+        "primary": "#a855f7",
+        "primaryHover": "#9333ea",
+        "primaryLight": "#e9d5ff",
+        "background": "#0a0a0a",
+        "backgroundLight": "#1a1a1a",
+        "surface": "#262626",
+        "surfaceHover": "#404040",
+        "text": "#ffffff",
+        "textMuted": "#a3a3a3",
+        "border": "#404040",
+        "accent": "#a855f7",
+        "success": "#22c55e",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "gradient": "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)",
+        "glow": "0 0 20px rgba(168, 85, 247, 0.5)"
+      }
+    },
+    "amber": {
+      "name": "Amber",
+      "colors": {
+        "primary": "#f59e0b",
+        "primaryHover": "#d97706",
+        "primaryLight": "#fde68a",
+        "background": "#0a0a0a",
+        "backgroundLight": "#1a1a1a",
+        "surface": "#262626",
+        "surfaceHover": "#404040",
+        "text": "#ffffff",
+        "textMuted": "#a3a3a3",
+        "border": "#404040",
+        "accent": "#f59e0b",
+        "success": "#22c55e",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "gradient": "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
+        "glow": "0 0 20px rgba(245, 158, 11, 0.5)"
+      }
+    }
+  }
+}

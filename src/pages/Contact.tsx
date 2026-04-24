@@ -38,8 +38,8 @@ const Contact = () => {
   return (
     <div className="container py-10 md:py-14">
       <Helmet>
-        <title>Contact Us — Conquer Top 100</title>
-        <meta name="description" content="Get in touch with the Conquer Top 100 team. We're here to help with any questions or concerns." />
+        <title>Contact Us — VoteVault</title>
+        <meta name="description" content="Get in touch with the VoteVault team. We're here to help with any questions or concerns." />
       </Helmet>
 
       <div className="max-w-4xl mx-auto">
