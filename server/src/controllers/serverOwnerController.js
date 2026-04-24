@@ -253,10 +253,10 @@ export const updateActivePlayers = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Update active players count
+    // Update both active_players AND player_count for consistency
     await db.query(
-      'UPDATE servers SET active_players = ?, last_active_update = NOW() WHERE id = ?',
-      [active_players, serverId]
+      'UPDATE servers SET active_players = ?, player_count = ?, last_active_update = NOW() WHERE id = ?',
+      [active_players, active_players, serverId]
     );
 
     res.json({ message: 'Active players updated successfully', active_players });
