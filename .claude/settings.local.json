@@ -12,7 +12,8 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(netstat -ano)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)"
     ]
   }
 }

@@ -454,6 +454,10 @@ export const api = {
     getReviews: (userId: string) =>
       apiClient.get<Review[]>(`/users/${userId}/reviews`),
   },
+
+  // Batch API - Get multiple resources in one request
+  batch: (requests: Array<{ endpoint: string; method: string }>) =>
+    apiClient.post<{ results: Array<{ endpoint: string; status: number; data?: any; error?: string }> }>('/batch', { requests }),
 };
 
 // Export types

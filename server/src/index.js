@@ -46,6 +46,7 @@ import userPreferencesRoutes from './routes/userPreferencesRoutes.js';
 import achievementRoutes from './routes/achievementRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
+import batchRoutes from './routes/batchRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -72,25 +73,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Logging Middleware
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
-
-// Security Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: false, // Allow serving images cross-origin
-}));
-
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Too many requests from this IP, please try again after 15 minutes'
-});
-app.use('/api/', limiter);
-
-// Restricted CORS
+// CORS MUST BE FIRST - before any other middleware
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:8080',
@@ -98,20 +81,52 @@ const allowedOrigins = [
   'http://localhost:3000'
 ].filter(Boolean);
 
-// CORS configuration - MUST be before other middleware
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked: ${origin}`);
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range', 'Access-Control-Allow-Origin'],
-  maxAge: 600,
-  preflightContinue: false,
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours cache for preflight
   optionsSuccessStatus: 204
 }));
 
-// Handle preflight requests explicitly
+// Handle all OPTIONS requests
 app.options('*', cors());
+
+// Logging Middleware
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+
+// Security Middleware - AFTER CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginEmbedderPolicy: false
+}));
+
+// Rate Limiting - Increased for production load
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10000, // 10k requests per 15 min per IP (handles high traffic)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please try again later',
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/health' || req.path === '/api/health';
+  }
+});
+app.use('/api/', limiter);
 
 app.use(express.json());
 
@@ -122,6 +137,7 @@ app.use(trackVisit);
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Routes
+app.use('/api/batch', batchRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/reviews', reviewRoutes);

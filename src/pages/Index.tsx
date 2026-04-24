@@ -23,14 +23,32 @@ const Index = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [serversData, statsData] = await Promise.all([
-          api.servers.getAll(),
-          api.stats.getSiteStats().catch(() => ({ total_visits: 0 }))
+        // Use batch API to get all data in one request
+        const response = await api.batch([
+          { endpoint: '/servers', method: 'GET' },
+          { endpoint: '/stats/site', method: 'GET' }
         ]);
-        setServers(serversData || []);
-        setTotalVisits(statsData.total_visits || 0);
+
+        if (response.results) {
+          const serversResult = response.results.find(r => r.endpoint === '/servers');
+          const statsResult = response.results.find(r => r.endpoint === '/stats/site');
+
+          setServers(serversResult?.data || []);
+          setTotalVisits(statsResult?.data?.total_visits || 0);
+        }
       } catch (err) {
-        console.error("Error fetching servers:", err);
+        console.error("Error fetching data:", err);
+        // Fallback to individual requests if batch fails
+        try {
+          const [serversData, statsData] = await Promise.all([
+            api.servers.getAll(),
+            api.stats.getSiteStats().catch(() => ({ total_visits: 0 }))
+          ]);
+          setServers(serversData || []);
+          setTotalVisits(statsData.total_visits || 0);
+        } catch (fallbackErr) {
+          console.error("Fallback fetch failed:", fallbackErr);
+        }
       } finally {
         setLoading(false);
       }
