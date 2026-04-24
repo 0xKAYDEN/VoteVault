@@ -57,9 +57,21 @@ export function AmbientBackground() {
 
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-25"
+        style={{ backgroundImage: "url('/Asstets/bg.png')" }}
+      />
+
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+
+      {/* Floating Orbs */}
       <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-primary/20 blur-[120px] animate-float-orb" />
       <div className="absolute top-1/3 -right-40 h-[600px] w-[600px] rounded-full bg-primary-deep/25 blur-[140px] animate-float-orb" style={{ animationDelay: "-6s" }} />
       <div className="absolute -bottom-40 left-1/3 h-[500px] w-[500px] rounded-full bg-[hsl(15_80%_35%/0.25)] blur-[120px] animate-float-orb" style={{ animationDelay: "-12s" }} />
+
+      {/* Particle Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 opacity-70" />
     </div>
   );
