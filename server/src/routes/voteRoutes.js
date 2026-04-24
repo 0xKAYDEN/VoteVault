@@ -2,7 +2,6 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { checkCooldown, submitVote, getAnalytics, getVoteLink, getVotesByTracking } from '../controllers/voteController.js';
 import auth from '../middleware/auth.js';
-import { verifyRecaptcha } from '../middleware/recaptcha.js';
 
 const router = express.Router();
 
@@ -20,7 +19,7 @@ const optionalAuth = (req, res, next) => {
 
 router.get('/cooldown/:serverId', auth, checkCooldown);
 router.get('/analytics', optionalAuth, getAnalytics);
-router.post('/', auth, verifyRecaptcha, submitVote);
+router.post('/', auth, submitVote); // Removed verifyRecaptcha - using challenges instead
 
 // Vote tracking for server owners
 router.get('/tracking/:serverId/link', auth, getVoteLink);
