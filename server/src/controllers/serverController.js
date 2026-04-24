@@ -8,18 +8,6 @@ export const getServers = async (req, res) => {
   try {
     const { status = 'approved', search, region, version } = req.query;
 
-    // Create cache key based on query params
-    const cacheKey = `servers:list:${status}:${search || 'all'}:${region || 'all'}:${version || 'all'}`;
-
-    // Try to get from cache first
-    const cachedServers = await cache.get(cacheKey);
-    if (cachedServers) {
-      logger.info(`Cache HIT: ${cacheKey}`);
-      return res.json(cachedServers);
-    }
-
-    logger.info(`Cache MISS: ${cacheKey}`);
-
     let query = `SELECT s.*, u.subscription_plan, u.subscription_expires_at
                  FROM servers s
                  LEFT JOIN users u ON s.owner_id = u.id
@@ -44,10 +32,6 @@ export const getServers = async (req, res) => {
     query += ' ORDER BY s.vote_count DESC';
 
     const [rows] = await pool.query(query, params);
-
-    // Cache for 5 minutes (300 seconds)
-    await cache.set(cacheKey, rows, 300);
-
     res.json(rows);
   } catch (err) {
     logger.error('Error fetching servers:', err);
@@ -58,24 +42,11 @@ export const getServers = async (req, res) => {
 export const getServerBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
-    // Try cache first
-    const cacheKey = `server:slug:${slug}`;
-    const cachedServer = await cache.get(cacheKey);
-
-    if (cachedServer) {
-      logger.info(`Cache HIT: ${cacheKey}`);
-      return res.json(cachedServer);
-    }
-
-    logger.info(`Cache MISS: ${cacheKey}`);
     const [rows] = await pool.query('SELECT * FROM servers WHERE slug = ?', [slug]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Server not found' });
     }
-
-    // Cache for 10 minutes
-    await cache.set(cacheKey, rows[0], 600);
 
     res.json(rows[0]);
   } catch (err) {
