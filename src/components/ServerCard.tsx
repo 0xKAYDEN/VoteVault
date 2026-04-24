@@ -38,7 +38,6 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
   const [voteDialogOpen, setVoteDialogOpen] = useState(false);
 
   const isTop3 = rank <= 3;
@@ -108,24 +107,7 @@ export function ServerCard({ server, rank }: { server: ServerRow; rank: number }
           isTop3 && "shadow-[0_0_30px_hsl(0_80%_50%/0.15)] hover:shadow-[0_0_50px_hsl(0_80%_50%/0.3)]",
           "animate-fade-in"
         )}
-        onMouseEnter={() => setShowPreview(true)}
-        onMouseLeave={() => setShowPreview(false)}
       >
-        {/* Hover Preview Overlay */}
-        {showPreview && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent z-10 p-6 flex flex-col justify-end animate-fade-in pointer-events-none">
-            <h4 className="font-bold text-lg mb-2">About {server.name}</h4>
-            <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-              {server.short_description}
-            </p>
-            {server.features && (
-              <div className="text-xs text-muted-foreground">
-                <span className="font-semibold text-primary">Features:</span> {server.features}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="flex flex-col sm:flex-row">
           {/* Rank badge */}
           <div className={cn(
