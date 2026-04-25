@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { api } from "@/lib/api";
 import { ServerCard, ServerRow } from "@/components/ServerCard";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Trophy, Zap, Users, Sparkles, X, Grid3x3, List, LayoutGrid, BadgeCheck, Eye } from "lucide-react";
+import { Trophy, Zap, Users, Sparkles, BadgeCheck, Eye } from "lucide-react";
 import { ServerListSkeleton, ServerCompactGridSkeleton, ServerRowListSkeleton } from "@/components/LoadingStates";
+import { AdvancedFilters } from "@/components/AdvancedFilters";
 
 type SortKey = "votes" | "rating" | "newest" | "name" | "players";
 type ViewMode = "card" | "compact" | "list";
@@ -19,6 +18,8 @@ const Index = () => {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [totalVisits, setTotalVisits] = useState(0);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
+  const [selectedRate, setSelectedRate] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -63,6 +64,8 @@ const Index = () => {
     }
     if (region) list = list.filter(s => s.region === region);
     if (verifiedOnly) list = list.filter(s => s.is_verified);
+    if (selectedVersion) list = list.filter(s => s.version === selectedVersion);
+    if (selectedRate) list = list.filter(s => s.rate === selectedRate);
     switch (sort) {
       case "votes": list.sort((a, b) => Number(b.vote_count) - Number(a.vote_count)); break;
       case "rating": list.sort((a, b) => Number(b.rating_avg) - Number(a.rating_avg)); break;
@@ -71,7 +74,7 @@ const Index = () => {
       case "players": list.sort((a, b) => Number(b.active_players) - Number(a.active_players)); break;
     }
     return list;
-  }, [servers, query, sort, region, verifiedOnly]);
+  }, [servers, query, sort, region, verifiedOnly, selectedVersion, selectedRate]);
 
   const totalVotes = servers.reduce((s, x) => s + (Number(x.vote_count) || 0), 0);
   const totalPlayers = servers.reduce((s, x) => s + (Number(x.active_players) || 0), 0);
@@ -79,6 +82,8 @@ const Index = () => {
   const newest = [...servers].sort((a, b) => Number(b.id) - Number(a.id))[0];
 
   const regions = Array.from(new Set(servers.map(s => s.region).filter(Boolean))) as string[];
+  const versions = Array.from(new Set(servers.map(s => s.version).filter(Boolean))) as string[];
+  const rates = Array.from(new Set(servers.map(s => s.rate).filter(Boolean))) as string[];
 
   return (
     <div className="container py-10 md:py-14">
@@ -123,85 +128,26 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Filters */}
-      <div className="glass rounded-2xl p-4 mb-6 space-y-3">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search servers…"
-              className="pl-10 bg-white/[0.03] border-white/10 focus-visible:ring-primary/50"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {(["votes", "rating", "newest", "players", "name"] as SortKey[]).map(k => (
-              <Button key={k} size="sm" variant={sort === k ? "hero" : "outline"} onClick={() => setSort(k)} className="capitalize">
-                {k}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={verifiedOnly ? "hero" : "outline"}
-              onClick={() => setVerifiedOnly(!verifiedOnly)}
-              className="gap-2"
-            >
-              <BadgeCheck className="h-4 w-4" />
-              Verified Only
-            </Button>
-          </div>
-
-          <div className="h-4 w-px bg-white/10" />
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">View:</span>
-            <Button
-              size="sm"
-              variant={viewMode === "card" ? "hero" : "outline"}
-              onClick={() => setViewMode("card")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "compact" ? "hero" : "outline"}
-              onClick={() => setViewMode("compact")}
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "list" ? "hero" : "outline"}
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {regions.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground self-center mr-1">Region:</span>
-          {regions.map(r => (
-            <button key={r}
-              onClick={() => setRegion(region === r ? null : r)}
-              className={`text-xs px-3 py-1 rounded-full border transition ${region === r ? "bg-primary/20 border-primary/50 text-primary-glow" : "bg-white/5 border-white/10 hover:border-white/20"}`}>
-              {r}
-            </button>
-          ))}
-          {region && (
-            <button onClick={() => setRegion(null)} className="text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 hover:border-destructive/40 flex items-center gap-1">
-              <X className="h-3 w-3" /> clear
-            </button>
-          )}
-        </div>
-      )}
+      {/* Advanced Filters */}
+      <AdvancedFilters
+        query={query}
+        setQuery={setQuery}
+        sort={sort}
+        setSort={setSort}
+        region={region}
+        setRegion={setRegion}
+        verifiedOnly={verifiedOnly}
+        setVerifiedOnly={setVerifiedOnly}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        regions={regions}
+        versions={versions}
+        rates={rates}
+        selectedVersion={selectedVersion}
+        setSelectedVersion={setSelectedVersion}
+        selectedRate={selectedRate}
+        setSelectedRate={setSelectedRate}
+      />
 
       {/* Server list */}
       {loading ? (
