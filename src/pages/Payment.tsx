@@ -41,12 +41,11 @@ type NetworkId = typeof NETWORKS[number]["id"];
 // ── Plans ─────────────────────────────────────────────────────────────────────
 type PlanInfo = { name: string; price: string; period: string; features: string[]; isPremium?: boolean };
 const PLANS: Record<string, PlanInfo> = {
-  user_premium_monthly: { name: "User Premium", price: "4.99", period: "month", isPremium: true, features: ["Premium badge & themes","Animated avatar","1000-char bio","Profile banner","Unlimited friends","Custom status","Friend groups","Vote streak bonuses","Double XP","Exclusive achievements","Vote history export","Ad-free","Priority support","Custom emojis"] },
+  user_premium_monthly: { name: "User Premium", price: "4.99", period: "month", isPremium: true, features: ["Premium badge & themes","Animated avatar","1000-char bio","Profile banner","Unlimited friends","Custom status","Friend groups","Vote streak bonuses","Double XP","Exclusive achievements","Vote history export","Custom emojis"] },
   user_premium_yearly:  { name: "User Premium (Yearly)", price: "49", period: "year", isPremium: true, features: ["All monthly Premium features","Save 18% vs monthly"] },
   starter:    { name: "Starter",    price: "4.99",  period: "month", features: ["Priority search placement","Custom banner & logo","Vote analytics & referrer tracking","Server verified badge","API: 5,000 req/day","Email support"] },
   pro:        { name: "Pro",        price: "14.99", period: "month", features: ["Everything in Starter","Top 10 placement boost","Advanced analytics & geo data","API: 50,000 req/day","Discord webhooks","Priority support"] },
   enterprise: { name: "Enterprise", price: "39.99", period: "month", features: ["Everything in Pro","Guaranteed top 3 placement","Custom branding","API: Unlimited","Dedicated manager","24/7 support"] },
-  basic:      { name: "Starter",    price: "4.99",  period: "month", features: ["Priority listing","Custom banner","Basic analytics"] },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -59,6 +58,14 @@ const Payment = () => {
   const [copied, setCopied]         = useState(false);
   const [txHash, setTxHash]         = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
+
+  // Check if payments are enabled (kill switch)
+  useEffect(() => {
+    api.payments.checkStatus()
+      .then(d => setPaymentsEnabled(d.enabled))
+      .catch(() => setPaymentsEnabled(true)); // default to enabled on error
+  }, []);
   const [result, setResult]         = useState<{ status: "active" | "pending"; autoActivated: boolean } | null>(null);
 
   const plan        = location.state?.plan || "starter";
@@ -115,6 +122,37 @@ const Payment = () => {
   };
 
   if (!profile) return null;
+
+  // ── Payments disabled (kill switch) ──────────────────────────────────────
+  if (paymentsEnabled === false) {
+    return (
+      <div className="container py-16 max-w-lg text-center">
+        <div className="glass rounded-2xl p-10 space-y-5">
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-yellow-500/10 mx-auto">
+            <AlertCircle className="h-8 w-8 text-yellow-400" />
+          </div>
+          <h1 className="font-display text-3xl font-bold">Payments Unavailable</h1>
+          <p className="text-muted-foreground">
+            Our payment system is temporarily unavailable for maintenance.
+            Please check back soon or contact support.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => navigate("/pricing")}>View Plans</Button>
+            <Button variant="hero" onClick={() => navigate("/contact")}>Contact Support</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading kill switch ───────────────────────────────────────────────────
+  if (paymentsEnabled === null) {
+    return (
+      <div className="container py-16 max-w-lg text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+      </div>
+    );
+  }
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (result) {
@@ -296,6 +334,12 @@ const Payment = () => {
               <li>Otherwise, activation within 10 minutes by our team</li>
               <li>You will receive a confirmation email</li>
             </ol>
+            <p className="mt-3 text-xs">
+              By completing payment you agree to our{" "}
+              <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
+              {" "}and{" "}
+              <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>.
+            </p>
           </div>
         </div>
       </div>

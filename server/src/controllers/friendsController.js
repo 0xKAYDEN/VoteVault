@@ -1,5 +1,6 @@
 import db from '../db.js';
 import { notifyFriendRequest } from './notificationController.js';
+import logger from '../utils/logger.js';
 
 const FREE_FRIEND_LIMIT = 50;
 
@@ -65,7 +66,7 @@ export const sendFriendRequest = async (req, res) => {
 
     res.json({ message: 'Friend request sent' });
   } catch (error) {
-    console.error('Error sending friend request:', error);
+    logger.error('Error sending friend request:', error);
     res.status(500).json({ error: 'Failed to send friend request' });
   }
 };
@@ -86,7 +87,7 @@ export const getFriendRequests = async (req, res) => {
 
     res.json(requests);
   } catch (error) {
-    console.error('Error fetching friend requests:', error);
+    logger.error('Error fetching friend requests:', error);
     res.status(500).json({ error: 'Failed to fetch friend requests' });
   }
 };
@@ -123,7 +124,7 @@ export const acceptFriendRequest = async (req, res) => {
 
     res.json({ message: 'Friend request accepted' });
   } catch (error) {
-    console.error('Error accepting friend request:', error);
+    logger.error('Error accepting friend request:', error);
     res.status(500).json({ error: 'Failed to accept friend request' });
   }
 };
@@ -141,7 +142,7 @@ export const rejectFriendRequest = async (req, res) => {
 
     res.json({ message: 'Friend request rejected' });
   } catch (error) {
-    console.error('Error rejecting friend request:', error);
+    logger.error('Error rejecting friend request:', error);
     res.status(500).json({ error: 'Failed to reject friend request' });
   }
 };
@@ -177,7 +178,7 @@ export const getFriends = async (req, res) => {
 
     res.json(friends);
   } catch (error) {
-    console.error('Error fetching friends:', error);
+    logger.error('Error fetching friends:', error);
     res.status(500).json({ error: 'Failed to fetch friends' });
   }
 };
@@ -195,7 +196,7 @@ export const removeFriend = async (req, res) => {
 
     res.json({ message: 'Friend removed' });
   } catch (error) {
-    console.error('Error removing friend:', error);
+    logger.error('Error removing friend:', error);
     res.status(500).json({ error: 'Failed to remove friend' });
   }
 };
@@ -238,7 +239,7 @@ export const checkFriendshipStatus = async (req, res) => {
 
     res.json({ status: 'none' });
   } catch (error) {
-    console.error('Error checking friendship status:', error);
+    logger.error('Error checking friendship status:', error);
     res.status(500).json({ error: 'Failed to check friendship status' });
   }
 };

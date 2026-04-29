@@ -4,16 +4,62 @@ import logger from '../utils/logger.js';
 import crypto from 'crypto';
 
 /**
- * Per-plan API rate limits — shared across ALL keys owned by the same user.
- * daily: max requests per 24 hours (null = unlimited)
- * perMinute: max requests per minute burst
+ * Per-plan API rate limits — fallback defaults if DB is unavailable.
+ * Loaded dynamically from api_plan_config table with Redis cache.
  */
-export const PLAN_LIMITS = {
+export const PLAN_LIMITS_DEFAULT = {
   free:       { daily: 500,    perMinute: 10   },
   starter:    { daily: 5000,   perMinute: 60   },
   pro:        { daily: 50000,  perMinute: 300  },
   enterprise: { daily: null,   perMinute: 1000 },
 };
+
+// Keep a module-level reference so we don't hit DB on every request
+let _planLimitsCache = null;
+let _planLimitsCacheExpiry = 0;
+
+/**
+ * Load plan limits from DB (with Redis cache, 5 min TTL).
+ * Falls back to hardcoded defaults if DB/Redis is unavailable.
+ */
+async function getPlanLimits() {
+  const now = Date.now();
+  // In-memory cache: avoid Redis round-trip on every request
+  if (_planLimitsCache && now < _planLimitsCacheExpiry) {
+    return _planLimitsCache;
+  }
+
+  try {
+    const cached = await cache.get('plan_config');
+    if (cached) {
+      _planLimitsCache = cached;
+      _planLimitsCacheExpiry = now + 5 * 60 * 1000;
+      return cached;
+    }
+
+    const [rows] = await pool.query(
+      'SELECT plan_name, daily_limit, per_minute FROM api_plan_config WHERE is_active = 1'
+    );
+
+    if (rows.length > 0) {
+      const config = {};
+      rows.forEach(r => {
+        config[r.plan_name] = { daily: r.daily_limit, perMinute: r.per_minute };
+      });
+      await cache.set('plan_config', config, 300); // 5 min TTL
+      _planLimitsCache = config;
+      _planLimitsCacheExpiry = now + 5 * 60 * 1000;
+      return config;
+    }
+  } catch (err) {
+    logger.warn('Failed to load plan config from DB, using defaults:', err.message);
+  }
+
+  return PLAN_LIMITS_DEFAULT;
+}
+
+// Backwards-compatible export
+export const PLAN_LIMITS = PLAN_LIMITS_DEFAULT;
 
 /**
  * Resolve plan name from a raw subscription plan string.
@@ -67,7 +113,8 @@ export const apiKeyAuth = async (req, res, next) => {
 
     const key    = keys[0];
     const plan   = resolvePlan(key.subscription_plan);
-    const limits = PLAN_LIMITS[plan];
+    const planLimits = await getPlanLimits();
+    const limits = planLimits[plan] || PLAN_LIMITS_DEFAULT[plan] || PLAN_LIMITS_DEFAULT.free;
     // Use local date so the daily quota resets at local midnight, not UTC midnight
     const _now   = new Date();
     const today  = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;

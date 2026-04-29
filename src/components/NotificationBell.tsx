@@ -36,10 +36,12 @@ export function NotificationBell() {
 
   const loadNotifications = async () => {
     try {
-      const [notifs, countData] = await Promise.all([
+      const [notifData, countData] = await Promise.all([
         api.notifications.getAll(),
         api.notifications.getUnreadCount(),
       ]);
+      // Backend returns { notifications, total, page, totalPages } or plain array (fallback)
+      const notifs = Array.isArray(notifData) ? notifData : (notifData?.notifications ?? []);
       setNotifications(notifs);
       setUnreadCount(countData.count);
     } catch (error) {

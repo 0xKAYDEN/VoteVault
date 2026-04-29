@@ -49,8 +49,8 @@ const poolConfig = {
   supportBigNumbers: true,
   bigNumberStrings: false,
 
-  // Reconnection settings
-  reconnect: true,
+  // Reconnection settings — handled by pool's built-in retry logic above
+  // Note: 'reconnect' is not a valid mysql2 pool option; retry is done in testConnection()
 };
 
 const pool = mysql.createPool(poolConfig);

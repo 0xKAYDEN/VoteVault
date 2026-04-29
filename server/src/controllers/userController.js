@@ -1,4 +1,5 @@
 import db from '../db.js';
+import logger from '../utils/logger.js';
 
 // Get user profile by ID
 export const getUserProfile = async (req, res) => {
@@ -62,7 +63,7 @@ export const getUserProfile = async (req, res) => {
 
     res.json(profile);
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    logger.error('Error fetching user profile:', error);
     res.status(500).json({ error: 'Failed to fetch user profile' });
   }
 };
@@ -98,7 +99,7 @@ export const updateUserProfile = async (req, res) => {
 
     res.json({ message: 'Profile updated successfully' });
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    logger.error('Error updating user profile:', error);
     res.status(500).json({ error: 'Failed to update profile' });
   }
 };

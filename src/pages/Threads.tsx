@@ -259,7 +259,10 @@ const Threads = () => {
               <Button
                 variant="outline" size="sm"
                 disabled={page <= 1}
-                onClick={() => setSearchParams(p => { p.set("page", String(page - 1)); return p; })}
+                onClick={() => {
+                  setSearchParams(p => { p.set("page", String(page - 1)); return p; });
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
               >
                 Previous
               </Button>
@@ -269,7 +272,10 @@ const Threads = () => {
               <Button
                 variant="outline" size="sm"
                 disabled={page >= totalPages}
-                onClick={() => setSearchParams(p => { p.set("page", String(page + 1)); return p; })}
+                onClick={() => {
+                  setSearchParams(p => { p.set("page", String(page + 1)); return p; });
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
               >
                 Next
               </Button>

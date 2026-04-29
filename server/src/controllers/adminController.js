@@ -31,7 +31,7 @@ export const getAllServers = async (req, res) => {
 
     res.json({ servers: rows, total: total[0].count, page: Number(page) });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching all servers:', err);
     res.status(500).json({ message: 'Error fetching all servers' });
   }
 };
@@ -44,7 +44,7 @@ export const updateServerStatus = async (req, res) => {
     await pool.query('UPDATE servers SET status = ? WHERE id = ?', [status, id]);
     res.json({ message: `Server status updated to ${status}` });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating server status:', err);
     res.status(500).json({ message: 'Error updating server status' });
   }
 };
@@ -57,7 +57,7 @@ export const verifyServer = async (req, res) => {
     await pool.query('UPDATE servers SET is_verified = ? WHERE id = ?', [is_verified, id]);
     res.json({ message: `Server verification updated` });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating server verification:', err);
     res.status(500).json({ message: 'Error updating server verification' });
   }
 };
@@ -95,7 +95,7 @@ export const getAllUsers = async (req, res) => {
 
     res.json(formatted);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching all users:', err);
     res.status(500).json({ message: 'Error fetching all users' });
   }
 };
@@ -123,7 +123,7 @@ export const updateUserRole = async (req, res) => {
     res.json({ message: 'User roles updated successfully' });
   } catch (err) {
     await connection.rollback();
-    console.error(err);
+    logger.error('Error updating user roles:', err);
     res.status(500).json({ message: 'Error updating user roles' });
   } finally {
     connection.release();
@@ -424,7 +424,7 @@ export const getAdminStats = async (req, res) => {
       recentReports
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching admin stats:', err);
     res.status(500).json({ message: 'Error fetching admin stats' });
   }
 };

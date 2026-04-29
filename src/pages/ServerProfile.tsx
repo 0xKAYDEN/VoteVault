@@ -107,6 +107,16 @@ const ServerProfile = () => {
   const [params, setParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Sync active tab with URL hash — e.g. /server/my-server#reviews
+  const hashTab = window.location.hash.replace("#", "") || "overview";
+  const validTabs = ["overview", "info", "reviews", "stats"];
+  const [activeTab, setActiveTab] = useState(validTabs.includes(hashTab) ? hashTab : "overview");
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    window.history.replaceState(null, "", `${window.location.pathname}#${tab}`);
+  };
   const [server, setServer] = useState<(ServerRow & {
     long_description: string | null;
     website_url: string | null;
@@ -419,7 +429,7 @@ const ServerProfile = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="bg-white/5 border border-white/10">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="info">Server Info</TabsTrigger>

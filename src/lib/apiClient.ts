@@ -236,8 +236,16 @@ class ApiClient {
       const contentType = response.headers.get('content-type');
       let data: any;
 
-      if (contentType?.includes('application/json')) {
-        data = await response.json();
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        // No content — return empty object
+        data = {};
+      } else if (contentType?.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch {
+          // Body was empty or malformed despite JSON content-type
+          data = {};
+        }
       } else {
         data = await response.text();
       }

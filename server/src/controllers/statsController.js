@@ -1,4 +1,5 @@
 import db from '../db.js';
+import logger from '../utils/logger.js';
 
 // Get site-wide statistics
 export const getSiteStats = async (req, res) => {
@@ -11,7 +12,7 @@ export const getSiteStats = async (req, res) => {
       total_visits: result[0]?.total_visits || 0
     });
   } catch (error) {
-    console.error('Error fetching site stats:', error);
+    logger.error('Error fetching site stats:', error);
     res.status(500).json({ error: 'Failed to fetch site stats' });
   }
 };
@@ -27,7 +28,7 @@ export const getTotalVisits = async (req, res) => {
       total_visits: result[0]?.total_visits || 0
     });
   } catch (error) {
-    console.error('Error fetching total visits:', error);
+    logger.error('Error fetching total visits:', error);
     res.status(500).json({ error: 'Failed to fetch total visits' });
   }
 };
@@ -50,7 +51,7 @@ export const getStatsByDateRange = async (req, res) => {
     const [rows] = await db.query(query, params);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    logger.error('Error fetching stats:', error);
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 };

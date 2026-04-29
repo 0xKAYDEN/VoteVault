@@ -11,8 +11,11 @@ import { api } from "@/lib/api";
 import ReCAPTCHA from "react-google-recaptcha";
 import { ButtonLoading } from "@/components/LoadingStates";
 
-// reCAPTCHA v2 Site Key - get from https://www.google.com/recaptcha/admin
-const RECAPTCHA_V2_SITE_KEY = import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"; // Test key
+// reCAPTCHA v2 Site Key - set VITE_RECAPTCHA_V2_SITE_KEY in your .env
+const RECAPTCHA_V2_SITE_KEY = import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY;
+if (!RECAPTCHA_V2_SITE_KEY) {
+  console.warn("[Auth] VITE_RECAPTCHA_V2_SITE_KEY is not set. reCAPTCHA will not render.");
+}
 
 const Auth = () => {
   const navigate = useNavigate();

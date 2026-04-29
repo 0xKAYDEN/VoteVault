@@ -55,7 +55,7 @@ const Pricing = () => {
               Get Premium
             </Button>
             <div className="space-y-2.5">
-              {["Premium badge & profile themes", "Animated avatar support", "1000-char bio", "Profile banner", "Unlimited friends", "Custom status", "Friend groups", "Vote streak bonuses", "Double XP", "Exclusive achievements", "Vote history export", "Ad-free experience", "Priority support", "Custom emojis"].map((f, i) => (
+              {["Premium badge & profile themes", "Animated avatar support", "1000-char bio", "Profile banner", "Unlimited friends", "Custom status", "Friend groups", "Vote streak bonuses", "Double XP", "Exclusive achievements", "Vote history export", "Custom emojis"].map((f, i) => (
                 <div key={i} className="flex items-start gap-2.5">
                   <Check className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{f}</span>

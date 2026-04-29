@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Server, KeyRound, BookOpen, Plus, BarChart3, Crown, Settings, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Server, KeyRound, BookOpen, Plus, BarChart3, Crown, Settings, MessageSquare, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { usePremium } from "@/hooks/usePremium";
@@ -17,6 +17,7 @@ const DashboardLayout = () => {
     { to: "/dashboard", end: true, label: "Overview", icon: LayoutDashboard },
     { to: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
     { to: "/dashboard/servers", label: "My Servers", icon: Server },
+    { to: "/dashboard/reviews", label: "My Reviews", icon: Star },
     { to: "/dashboard/threads", label: "My Threads", icon: MessageSquare },
     { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
     { to: "/api-docs", label: "API Docs", icon: BookOpen },

@@ -185,7 +185,7 @@ export const createServer = async (req, res) => {
 
     res.status(201).json({ id: result.insertId, public_id, slug });
   } catch (err) {
-    console.error(err);
+    logger.error('Error creating server:', err);
     res.status(500).json({ message: 'Error creating server' });
   }
 };
@@ -206,6 +206,21 @@ export const updateServer = async (req, res) => {
       'version', 'rate', 'region', 'features', 'events_time', 'upcoming_updates',
       'is_online', 'active_players',
     ];
+
+    // Gate banner_url and logo_url to Starter+ plans (Section 5.6)
+    const PAID_ONLY_FIELDS = ['banner_url', 'logo_url'];
+    const hasPaidPlan = PAID_ONLY_FIELDS.some(f => f in req.body);
+    if (hasPaidPlan) {
+      const [activePlan] = await pool.query(
+        `SELECT plan FROM payments WHERE user_id = ? AND status = 'active' AND expires_at > NOW() LIMIT 1`,
+        [owner_id]
+      );
+      const paidPlans = ['starter', 'pro', 'enterprise'];
+      const userPlan = activePlan[0]?.plan || 'free';
+      if (!paidPlans.includes(userPlan)) {
+        return res.status(403).json({ message: 'Custom banner and logo require a Starter plan or higher.' });
+      }
+    }
     const body = req.body;
     const setClauses = [];
     const values = [];
@@ -317,7 +332,7 @@ export const getDashboardStats = async (req, res) => {
       recentReviews
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching dashboard stats:', err);
     res.status(500).json({ message: 'Error fetching dashboard stats' });
   }
 };
@@ -331,7 +346,73 @@ export const getMyServers = async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching your servers:', err);
     res.status(500).json({ message: 'Error fetching your servers' });
+  }
+};
+
+// Get all reviews for the owner's servers with pagination
+export const getMyReviews = async (req, res) => {
+  const owner_id = req.user.id;
+  const { page = 1, limit = 20, server_id, rating, replied } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
+
+  try {
+    // Build filter
+    let where = 's.owner_id = ? AND r.deleted_by_admin = FALSE';
+    const params = [owner_id];
+
+    if (server_id && server_id !== 'all') {
+      where += ' AND r.server_id = ?';
+      params.push(server_id);
+    }
+    if (rating && rating !== 'all') {
+      where += ' AND r.rating = ?';
+      params.push(Number(rating));
+    }
+    if (replied === 'yes') {
+      where += ' AND r.owner_response IS NOT NULL';
+    } else if (replied === 'no') {
+      where += ' AND r.owner_response IS NULL';
+    }
+
+    const [reviews] = await pool.query(
+      `SELECT r.*, p.username, p.display_name, p.avatar_url, s.name AS server_name, s.slug AS server_slug
+       FROM reviews r
+       JOIN servers s ON r.server_id = s.id
+       LEFT JOIN profiles p ON r.user_id = p.id
+       WHERE ${where}
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, Number(limit), offset]
+    );
+
+    const [total] = await pool.query(
+      `SELECT COUNT(*) AS count FROM reviews r JOIN servers s ON r.server_id = s.id WHERE ${where}`,
+      params
+    );
+
+    // Rating summary
+    const [summary] = await pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         AVG(r.rating) AS avg_rating,
+         SUM(CASE WHEN r.owner_response IS NULL THEN 1 ELSE 0 END) AS unanswered
+       FROM reviews r
+       JOIN servers s ON r.server_id = s.id
+       WHERE s.owner_id = ? AND r.deleted_by_admin = FALSE`,
+      [owner_id]
+    );
+
+    res.json({
+      reviews,
+      total: total[0].count,
+      page: Number(page),
+      totalPages: Math.ceil(total[0].count / Number(limit)),
+      summary: summary[0],
+    });
+  } catch (err) {
+    logger.error('Error fetching owner reviews:', err);
+    res.status(500).json({ message: 'Error fetching reviews' });
   }
 };

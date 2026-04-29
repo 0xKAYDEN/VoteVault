@@ -18,6 +18,8 @@ const LINKS = {
   Support: [
     { label: "Contact Us", to: "/contact" },
     { label: "Report a Bug", to: "/contact" },
+    { label: "Terms of Service", to: "/terms" },
+    { label: "Privacy Policy", to: "/privacy" },
   ],
 };
 
@@ -80,8 +82,8 @@ export function Footer() {
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>© {year} VoteVault. All rights reserved.</span>
           <div className="flex items-center gap-4">
-            <Link to="/contact" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <Link to="/contact" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, Loader2, Mail, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ const VerifyEmail = () => {
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [countdown, setCountdown] = useState(3);
+  const navigate = useNavigate();
 
   // Resend form
   const [resendEmail, setResendEmail] = useState("");
@@ -28,13 +30,21 @@ const VerifyEmail = () => {
     api.auth.verifyEmail(token)
       .then(() => {
         setStatus("success");
-        setMessage("Your email has been verified. You can now sign in.");
+        setMessage("Your email has been verified. Redirecting to sign in…");
       })
       .catch((err: any) => {
         setStatus("error");
         setMessage(err?.message || "This verification link is invalid or has already been used.");
       });
   }, [token]);
+
+  // Auto-redirect to /auth 3 seconds after successful verification
+  useEffect(() => {
+    if (status !== "success") return;
+    if (countdown <= 0) { navigate("/auth"); return; }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [status, countdown, navigate]);
 
   const handleResend = async () => {
     if (!resendEmail.trim()) { toast.error("Enter your email address"); return; }
@@ -67,8 +77,11 @@ const VerifyEmail = () => {
             <CheckCircle className="h-14 w-14 text-green-400 mx-auto" />
             <h1 className="font-display text-2xl font-bold">Email Verified!</h1>
             <p className="text-muted-foreground text-sm">{message}</p>
-            <Button variant="hero" asChild className="w-full">
-              <Link to="/auth">Sign In</Link>
+            <p className="text-xs text-muted-foreground">
+              Redirecting in <span className="text-primary font-semibold">{countdown}</span>s…
+            </p>
+            <Button variant="hero" onClick={() => navigate("/auth")} className="w-full">
+              Sign In Now
             </Button>
           </>
         )}

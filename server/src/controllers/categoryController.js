@@ -1,5 +1,6 @@
 import db from '../db.js';
 import { invalidateCache } from '../middleware/cache.js';
+import logger from '../utils/logger.js';
 
 // Get all active categories
 export const getAllCategories = async (req, res) => {
@@ -9,7 +10,7 @@ export const getAllCategories = async (req, res) => {
     );
     res.json(categories);
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    logger.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 };
@@ -40,7 +41,7 @@ export const getCategoryBySlug = async (req, res) => {
 
     res.json(category);
   } catch (error) {
-    console.error('Error fetching category:', error);
+    logger.error('Error fetching category:', error);
     res.status(500).json({ error: 'Failed to fetch category' });
   }
 };
@@ -73,7 +74,7 @@ export const getServersByCategory = async (req, res) => {
 
     res.json(servers);
   } catch (error) {
-    console.error('Error fetching servers by category:', error);
+    logger.error('Error fetching servers by category:', error);
     res.status(500).json({ error: 'Failed to fetch servers' });
   }
 };
@@ -93,7 +94,7 @@ export const getServerCategories = async (req, res) => {
 
     res.json(categories);
   } catch (error) {
-    console.error('Error fetching server categories:', error);
+    logger.error('Error fetching server categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 };
@@ -137,7 +138,7 @@ export const addCategoryToServer = async (req, res) => {
 
     res.json({ message: 'Category added successfully' });
   } catch (error) {
-    console.error('Error adding category to server:', error);
+    logger.error('Error adding category to server:', error);
     res.status(500).json({ error: 'Failed to add category' });
   }
 };
@@ -169,7 +170,7 @@ export const removeCategoryFromServer = async (req, res) => {
 
     res.json({ message: 'Category removed successfully' });
   } catch (error) {
-    console.error('Error removing category from server:', error);
+    logger.error('Error removing category from server:', error);
     res.status(500).json({ error: 'Failed to remove category' });
   }
 };
@@ -188,7 +189,7 @@ export const createCategory = async (req, res) => {
     await invalidateCache('cache:/api/categories/*');
     res.status(201).json({ message: 'Category created' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error creating category:', err);
     res.status(500).json({ error: 'Failed to create category' });
   }
 };
@@ -213,7 +214,7 @@ export const updateCategory = async (req, res) => {
     await invalidateCache('cache:/api/categories/*');
     res.json({ message: 'Category updated' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating category:', err);
     res.status(500).json({ error: 'Failed to update category' });
   }
 };
@@ -225,7 +226,7 @@ export const deleteCategory = async (req, res) => {
     await invalidateCache('cache:/api/categories/*');
     res.json({ message: 'Category deleted' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error deleting category:', err);
     res.status(500).json({ error: 'Failed to delete category' });
   }
 };

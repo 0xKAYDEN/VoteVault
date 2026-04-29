@@ -222,7 +222,7 @@ export const getAnalytics = async (req, res) => {
     const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching analytics:', err);
     res.status(500).json({ message: 'Error fetching analytics' });
   }
 };
@@ -252,7 +252,7 @@ export const getVoteLink = async (req, res) => {
       instructions: 'Share this link with your players. When they vote, you can track them using the tracking parameter.'
     });
   } catch (error) {
-    console.error(error);
+    logger.error('Error generating vote link:', error);
     res.status(500).json({ error: 'Failed to generate vote link' });
   }
 };
@@ -308,7 +308,7 @@ export const getVotesByTracking = async (req, res) => {
       total: votes.length
     });
   } catch (error) {
-    console.error(error);
+    logger.error('Error fetching votes by tracking:', error);
     res.status(500).json({ error: 'Failed to fetch votes' });
   }
 };

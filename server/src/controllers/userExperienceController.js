@@ -113,7 +113,7 @@ export const submitReport = async (req, res) => {
       return res.status(400).json({ error: 'Invalid report type' });
     }
 
-    if (!['spam', 'harassment', 'inappropriate', 'cheating', 'other'].includes(reason)) {
+    if (!['spam', 'harassment', 'inappropriate', 'cheating', 'fake', 'vote_manipulation', 'other'].includes(reason)) {
       return res.status(400).json({ error: 'Invalid reason' });
     }
 

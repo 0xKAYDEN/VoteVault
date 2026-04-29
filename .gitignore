@@ -28,3 +28,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Redis binary (use system Redis in production)
+server/Redis-x64-*/

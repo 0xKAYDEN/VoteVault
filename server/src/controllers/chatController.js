@@ -1,4 +1,5 @@
 import db from '../db.js';
+import logger from '../utils/logger.js';
 
 // Send message
 export const sendMessage = async (req, res) => {
@@ -29,7 +30,7 @@ export const sendMessage = async (req, res) => {
 
     res.json({ id: result.insertId, message: 'Message sent' });
   } catch (error) {
-    console.error('Error sending message:', error);
+    logger.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 };
@@ -53,7 +54,7 @@ export const getConversation = async (req, res) => {
 
     res.json(messages.reverse());
   } catch (error) {
-    console.error('Error fetching conversation:', error);
+    logger.error('Error fetching conversation:', error);
     res.status(500).json({ error: 'Failed to fetch conversation' });
   }
 };
@@ -71,7 +72,7 @@ export const markAsRead = async (req, res) => {
 
     res.json({ message: 'Messages marked as read' });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
+    logger.error('Error marking messages as read:', error);
     res.status(500).json({ error: 'Failed to mark messages as read' });
   }
 };
@@ -88,7 +89,7 @@ export const getUnreadCount = async (req, res) => {
 
     res.json({ count: result[0].count });
   } catch (error) {
-    console.error('Error fetching unread count:', error);
+    logger.error('Error fetching unread count:', error);
     res.status(500).json({ error: 'Failed to fetch unread count' });
   }
 };
@@ -129,7 +130,7 @@ export const getRecentConversations = async (req, res) => {
 
     res.json(conversations);
   } catch (error) {
-    console.error('Error fetching recent conversations:', error);
+    logger.error('Error fetching recent conversations:', error);
     res.status(500).json({ error: 'Failed to fetch recent conversations' });
   }
 };

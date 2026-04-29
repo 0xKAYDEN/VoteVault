@@ -1,23 +1,22 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
-import { checkCooldown, submitVote, getAnalytics, getVoteLink, getVotesByTracking, getGeoAnalytics } from '../controllers/voteController.js';
 import auth from '../middleware/auth.js';
+import { checkCooldown, submitVote, getAnalytics, getVoteLink, getVotesByTracking, getGeoAnalytics } from '../controllers/voteController.js';
 
 const router = express.Router();
 
-const optionalAuth = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return next();
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch {}
-  next();
+/**
+ * Conditional auth: requires cookie auth for private analytics,
+ * but allows unauthenticated access when ?public=true (server profile page).
+ */
+const analyticsAuth = (req, res, next) => {
+  if (req.query.public === 'true') return next(); // public server stats — no auth needed
+  return auth(req, res, next);                    // dashboard analytics — requires login
 };
 
 router.get('/cooldown/:serverId', auth, checkCooldown);
-router.get('/analytics', optionalAuth, getAnalytics);  // public=true works without auth
+router.get('/analytics', analyticsAuth, getAnalytics);
 router.get('/geo', auth, getGeoAnalytics);
-router.post('/', auth, submitVote); // Removed verifyRecaptcha - using challenges instead
+router.post('/', auth, submitVote);
 
 // Vote tracking for server owners
 router.get('/tracking/:serverId/link', auth, getVoteLink);

@@ -9,11 +9,24 @@ import { getAllAchievements } from '../controllers/achievementController.js';
 import { createCategory, updateCategory, deleteCategory } from '../controllers/categoryController.js';
 import auth from '../middleware/auth.js';
 import adminOnly from '../middleware/adminOnly.js';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
+// Strict rate limit for admin routes — 100 requests per 15 min per IP
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({ message: 'Too many admin requests, please try again later' });
+  },
+});
+
 router.use(auth);
 router.use(adminOnly);
+router.use(adminLimiter);
 
 router.get('/stats', getAdminStats);
 router.get('/servers', getAllServers);

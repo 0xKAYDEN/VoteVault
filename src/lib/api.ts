@@ -211,6 +211,16 @@ export const api = {
 
     getMyServers: () =>
       apiClient.get<Server[]>('/servers/dashboard/my'),
+
+    getMyReviews: (params?: { page?: number; limit?: number; server_id?: string; rating?: string; replied?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.page)      q.set('page', String(params.page));
+      if (params?.limit)     q.set('limit', String(params.limit));
+      if (params?.server_id) q.set('server_id', params.server_id);
+      if (params?.rating)    q.set('rating', params.rating);
+      if (params?.replied)   q.set('replied', params.replied);
+      return apiClient.get<any>(`/servers/dashboard/reviews?${q.toString()}`);
+    },
   },
 
   // Reviews
@@ -411,6 +421,9 @@ export const api = {
 
   // Payments
   payments: {
+    checkStatus: () =>
+      apiClient.get<{ enabled: boolean }>('/payments/status'),
+
     verify: (data: { plan: string; txHash: string; amount: number }) =>
       apiClient.post<{ message: string; status: string }>('/payments/verify', data),
 
@@ -428,6 +441,15 @@ export const api = {
 
     reject: (paymentId: number, reason: string) =>
       apiClient.post<{ message: string }>(`/payments/${paymentId}/reject`, { reason }),
+
+    grantSubscription: (data: { userId: string; plan: string; days?: number }) =>
+      apiClient.post<{ message: string }>('/payments/grant', data),
+
+    getAdminStatus: () =>
+      apiClient.get<{ enabled: boolean }>('/payments/admin/status'),
+
+    setAdminStatus: (enabled: boolean) =>
+      apiClient.post<{ message: string; enabled: boolean }>('/payments/admin/status', { enabled }),
   },
 
   // Favorites

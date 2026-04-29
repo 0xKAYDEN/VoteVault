@@ -61,6 +61,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import premiumRoutes from './routes/premiumRoutes.js';
 import threadRoutes from './routes/threadRoutes.js';
 import publicApiRoutes from './routes/publicApiRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 import { startScheduler } from './utils/scheduler.js';
 
 const app = express();
@@ -154,7 +155,7 @@ app.use((err, req, res, next) => {
 });
 
 // Logging Middleware
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(morgan('short', { stream: { write: message => logger.info(message.trim()) } }));
 
 // Security Middleware - AFTER CORS
 app.use(helmet({
@@ -219,6 +220,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/premium', premiumRoutes);
 app.use('/api/threads', threadRoutes);
 app.use('/api/v1', publicApiRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api', healthRoutes);
 
 // Basic health check (legacy endpoint)
@@ -265,13 +267,33 @@ if (process.env.NODE_ENV !== 'test') {
   logger.info('🔌 Initializing Socket.io...');
   initializeSocket(httpServer);
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, async () => {
     logger.info('='.repeat(50));
     logger.info(`🚀 VoteVault Server Started`);
     logger.info(`   Port: ${PORT}`);
     logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`   Time: ${new Date().toISOString()}`);
     logger.info('='.repeat(50));
+
+    // Auto-create app_settings table if it doesn't exist
+    try {
+      const pool = (await import('./db.js')).default;
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+          id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          setting_key  VARCHAR(100) NOT NULL UNIQUE,
+          setting_value TEXT        NOT NULL DEFAULT '',
+          updated_by   VARCHAR(36)  NULL,
+          updated_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+      await pool.query(
+        `INSERT IGNORE INTO app_settings (setting_key, setting_value) VALUES ('payments_enabled', 'true')`
+      );
+    } catch (e) {
+      logger.warn('Could not auto-create app_settings table:', e.message);
+    }
+
     startScheduler();
   });
 

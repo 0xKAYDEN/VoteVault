@@ -14,16 +14,29 @@ export const createNotification = async (userId, type, title, message, link = nu
   }
 };
 
-// Get user notifications
+// Get user notifications with pagination
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
     const [notifications] = await db.query(
-      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [userId, Number(limit), offset]
+    );
+
+    const [total] = await db.query(
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ?',
       [userId]
     );
 
-    res.json(notifications);
+    res.json({
+      notifications,
+      total: total[0].count,
+      page: Number(page),
+      totalPages: Math.ceil(total[0].count / Number(limit)),
+    });
   } catch (error) {
     logger.error('Error fetching notifications:', error);
     res.status(500).json({ error: 'Failed to fetch notifications' });

@@ -345,9 +345,14 @@ const DashboardOverview = () => {
       </div>
 
       <div className="glass rounded-2xl p-6">
-        <h3 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-primary" />
-          Recent Reviews
+        <h3 className="font-display text-lg font-bold mb-4 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            Recent Reviews
+          </span>
+          <Link to="/dashboard/reviews" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+            View all →
+          </Link>
         </h3>
         {loading ? (
           <div className="space-y-4">
@@ -364,7 +369,7 @@ const DashboardOverview = () => {
         ) : (
           <div className="space-y-4">
             {stats.recentReviews.length > 0 ? (
-            stats.recentReviews.map((r: any) => (
+            stats.recentReviews.slice(0, 5).map((r: any) => (
               <div key={r.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
                 <div className="flex justify-between items-start mb-2">
                   <div>

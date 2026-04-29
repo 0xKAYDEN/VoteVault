@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth.context";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -33,6 +32,7 @@ import VoteAnalytics from "./pages/dashboard/VoteAnalytics.tsx";
 import Settings from "./pages/dashboard/Settings.tsx";
 import Premium from "./pages/dashboard/Premium.tsx";
 import MyThreads from "./pages/dashboard/MyThreads.tsx";
+import MyReviews from "./pages/dashboard/MyReviews.tsx";
 import Threads from "./pages/Threads.tsx";
 import ThreadDetail from "./pages/ThreadDetail.tsx";
 import NewThread from "./pages/NewThread.tsx";
@@ -45,6 +45,8 @@ import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminCategories from "./pages/admin/AdminCategories.tsx";
 import AdminReports from "./pages/admin/AdminReports.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import TermsOfService from "./pages/TermsOfService.tsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,8 +58,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Get your reCAPTCHA v3 site key from: https://www.google.com/recaptcha/admin
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LdfUsgsAAAAAENdS9b111PeGCaa6vTSV0CRhTK3";
 
 const App = () => (
   <ErrorBoundary level="app" onError={(error, errorInfo) => {
@@ -65,7 +65,6 @@ const App = () => (
     console.error('App-level error:', error, errorInfo);
   }}>
     <QueryClientProvider client={queryClient}>
-      <GoogleReCaptchaProvider reCaptchaKey={RECAPTCHA_SITE_KEY}>
         <ThemeProvider>
           <TooltipProvider>
             <BrowserRouter>
@@ -97,6 +96,8 @@ const App = () => (
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/categories" element={<Categories />} />
                     <Route path="/categories/:slug" element={<CategoryServers />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/threads" element={<Threads />} />
                     <Route path="/threads/new" element={<NewThread />} />
                     <Route path="/threads/:publicId" element={<ThreadDetail />} />
@@ -112,6 +113,7 @@ const App = () => (
                       <Route path="settings" element={<Settings />} />
                       <Route path="premium" element={<Premium />} />
                       <Route path="threads" element={<MyThreads />} />
+                      <Route path="reviews" element={<MyReviews />} />
                     </Route>
                     <Route path="/admin" element={<AdminLayout />}>
                       <Route index element={<AdminOverview />} />
@@ -130,7 +132,6 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </ThemeProvider>
-      </GoogleReCaptchaProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

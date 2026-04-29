@@ -20,12 +20,27 @@ const Contact = () => {
     setLoading(true);
 
     try {
-      // TODO: Implement actual contact form submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      // Safely parse JSON — some error responses (e.g. rate limit) may not be JSON
+      let data: any = {};
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || "An error occurred" };
+      }
+
+      if (!res.ok) throw new Error(data.message || "Failed to send message");
       toast.success("Message sent successfully! We'll get back to you soon.");
       setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
-      toast.error("Failed to send message. Please try again.");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send message. Please try again.");
     } finally {
       setLoading(false);
     }

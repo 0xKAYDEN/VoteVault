@@ -1,6 +1,7 @@
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import db from '../db.js';
+import logger from '../utils/logger.js';
 
 // Generate 2FA secret
 export const generate2FASecret = async (req, res) => {
@@ -35,7 +36,7 @@ export const generate2FASecret = async (req, res) => {
       qrCode: qrCodeUrl
     });
   } catch (error) {
-    console.error('Error generating 2FA secret:', error);
+    logger.error('Error generating 2FA secret:', error);
     res.status(500).json({ error: 'Failed to generate 2FA secret' });
   }
 };
@@ -87,7 +88,7 @@ export const enable2FA = async (req, res) => {
       backupCodes: backupCodes
     });
   } catch (error) {
-    console.error('Error enabling 2FA:', error);
+    logger.error('Error enabling 2FA:', error);
     res.status(500).json({ error: 'Failed to enable 2FA' });
   }
 };
@@ -118,7 +119,7 @@ export const disable2FA = async (req, res) => {
 
     res.json({ message: '2FA disabled successfully' });
   } catch (error) {
-    console.error('Error disabling 2FA:', error);
+    logger.error('Error disabling 2FA:', error);
     res.status(500).json({ error: 'Failed to disable 2FA' });
   }
 };
@@ -166,7 +167,7 @@ export const verify2FAToken = async (req, res) => {
 
     res.json({ verified: true });
   } catch (error) {
-    console.error('Error verifying 2FA token:', error);
+    logger.error('Error verifying 2FA token:', error);
     res.status(500).json({ error: 'Failed to verify 2FA token' });
   }
 };
@@ -187,7 +188,7 @@ export const get2FAStatus = async (req, res) => {
 
     res.json({ enabled: users[0].two_factor_enabled });
   } catch (error) {
-    console.error('Error getting 2FA status:', error);
+    logger.error('Error getting 2FA status:', error);
     res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 };

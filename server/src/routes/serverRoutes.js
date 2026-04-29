@@ -2,7 +2,7 @@ import express from 'express';
 import {
   getServers, getServerBySlug, getServerById, createServer,
   updateServer, deleteServer, incrementVisits,
-  getDashboardStats, getMyServers
+  getDashboardStats, getMyServers, getMyReviews
 } from '../controllers/serverController.js';
 import auth from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
@@ -15,6 +15,7 @@ const router = express.Router();
 router.get('/', cacheMiddleware(300), getServers); // Cache for 5 minutes
 router.get('/dashboard/stats', auth, getDashboardStats);
 router.get('/dashboard/my', auth, getMyServers);
+router.get('/dashboard/reviews', auth, getMyReviews);
 router.get('/id/:id', cacheMiddleware(300), getServerById);
 router.get('/:slug', cacheMiddleware(300), getServerBySlug);
 router.post('/', auth, validate(createServerSchema), verifyRecaptcha, createServer);

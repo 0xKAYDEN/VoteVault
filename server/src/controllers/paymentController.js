@@ -2,6 +2,28 @@ import db from '../db.js';
 import logger from '../utils/logger.js';
 import { awardAchievement } from './achievementController.js';
 import { sendEmail } from '../utils/email.js';
+import { cache } from '../utils/cache.js';
+
+/**
+ * Invalidate a user's API rate limit cache after a plan upgrade.
+ * This ensures the new plan's limits apply immediately.
+ */
+async function invalidateApiCache(userId) {
+  try {
+    const _now = new Date();
+    const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    await cache.del(`api:day:${userId}:${today}`);
+    await cache.del(`api:min:${userId}`);
+    // Reset daily counter in DB so the new plan's limit applies from 0
+    await db.query(
+      `UPDATE profiles SET api_daily_used = 0, api_daily_date = ? WHERE id = ?`,
+      [today, userId]
+    );
+    logger.info(`Cleared API rate limit cache for user ${userId} after plan upgrade`);
+  } catch (err) {
+    logger.warn(`Failed to clear API cache for user ${userId}:`, err.message);
+  }
+}
 
 export const verifyPayment = async (req, res) => {
   try {
@@ -43,7 +65,7 @@ export const verifyPayment = async (req, res) => {
         const toAddress     = cd.to_address || cd.toAddress || '';
         const contractAddr  = cd.contract_address || cd.tokenInfo?.tokenId || '';
         const txAmount      = Number(cd.amount || cd.amount_str || 0) / 1e6; // USDT has 6 decimals
-        const walletAddress = process.env.VITE_USDT_WALLET || process.env.USDT_WALLET || 'TN1ZCfcKKmigD8NBCdvdAndw6GKHtKNxDU';
+        const walletAddress = process.env.USDT_WALLET || 'TN1ZCfcKKmigD8NBCdvdAndw6GKHtKNxDU';
 
         const addressMatch  = toAddress.toLowerCase() === walletAddress.toLowerCase();
         const contractMatch = contractAddr.toLowerCase() === USDT_CONTRACT.toLowerCase();
@@ -57,6 +79,14 @@ export const verifyPayment = async (req, res) => {
             [userId, plan, amount, txHash, days]
           );
           await awardAchievement(userId, 20);
+          // Auto-grant verified badge on Starter+ server plans
+          const serverPlans = ['starter', 'pro', 'enterprise'];
+          if (serverPlans.includes(plan)) {
+            await db.query(
+              `UPDATE servers SET is_verified = TRUE WHERE owner_id = ? AND is_verified = FALSE`,
+              [userId]
+            );
+          }
           // Send activation email
           const [userRows] = await db.query(
             'SELECT u.email, pr.display_name, pr.username FROM users u LEFT JOIN profiles pr ON u.id = pr.id WHERE u.id = ?',
@@ -76,6 +106,8 @@ export const verifyPayment = async (req, res) => {
             }).catch(() => {});
           }
           autoActivated = true;
+          // Invalidate API cache so new plan limits apply immediately
+          await invalidateApiCache(userId);
           logger.info(`Payment auto-activated for user ${userId}: ${plan}, tx: ${txHash}`);
           return res.json({ message: 'Payment verified and activated automatically!', status: 'active', autoActivated: true });
         }
@@ -180,6 +212,19 @@ export const activatePayment = async (req, res) => {
     if (payment.length > 0) {
       await awardAchievement(payment[0].user_id, 20);
 
+      // ── Invalidate API rate limit cache so new plan limits apply immediately ──
+      await invalidateApiCache(payment[0].user_id);
+
+      // Auto-grant verified badge on Starter+ server plans (Section 5.5)
+      const serverPlans = ['starter', 'pro', 'enterprise'];
+      if (serverPlans.includes(plan)) {
+        await db.query(
+          `UPDATE servers SET is_verified = TRUE WHERE owner_id = ? AND is_verified = FALSE`,
+          [payment[0].user_id]
+        );
+        logger.info(`Auto-verified servers for user ${payment[0].user_id} on plan ${plan}`);
+      }
+
       // Send activation email
       const name = payment[0].display_name || payment[0].username || 'there';
       const expiryDate = new Date(Date.now() + days * 86400000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -271,5 +316,125 @@ export const getPendingPayments = async (req, res) => {
   } catch (error) {
     logger.error('Error fetching pending payments:', error);
     res.status(500).json({ error: 'Failed to fetch pending payments' });
+  }
+};
+
+// Admin only - grant a subscription directly to a user (no payment required)
+export const grantSubscription = async (req, res) => {
+  try {
+    const { userId, plan, days } = req.body;
+    const adminId = req.user.id;
+
+    if (!userId || !plan) {
+      return res.status(400).json({ error: 'userId and plan are required' });
+    }
+
+    const validPlans = ['starter', 'pro', 'enterprise', 'user_premium_monthly', 'user_premium_yearly'];
+    if (!validPlans.includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    const grantDays = Number(days) || (plan === 'user_premium_yearly' ? 365 : 30);
+
+    // Check user exists
+    const [users] = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // Insert as an admin-granted active payment (no tx_hash)
+    await db.query(
+      `INSERT INTO payments (user_id, plan, amount, tx_hash, status, created_at, activated_at, expires_at)
+       VALUES (?, ?, 0, ?, 'active', NOW(), NOW(), DATE_ADD(NOW(), INTERVAL ? DAY))`,
+      [userId, plan, `admin_grant_${Date.now()}`, grantDays]
+    );
+
+    // Award achievement
+    await awardAchievement(userId, 20);
+
+    // Invalidate API cache so new plan limits apply immediately
+    await invalidateApiCache(userId);
+
+    // Auto-verify servers for server plans
+    const serverPlans = ['starter', 'pro', 'enterprise'];
+    if (serverPlans.includes(plan)) {
+      await db.query(
+        `UPDATE servers SET is_verified = TRUE WHERE owner_id = ? AND is_verified = FALSE`,
+        [userId]
+      );
+    }
+
+    // Send notification email
+    const [userRows] = await db.query(
+      'SELECT u.email, pr.display_name, pr.username FROM users u LEFT JOIN profiles pr ON u.id = pr.id WHERE u.id = ?',
+      [userId]
+    );
+    if (userRows.length > 0) {
+      const name = userRows[0].display_name || userRows[0].username || 'there';
+      const expiryDate = new Date(Date.now() + grantDays * 86400000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      sendEmail({
+        to: userRows[0].email,
+        subject: '🎉 Your VoteVault subscription has been activated!',
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0f0f0f;color:#fff;padding:32px;border-radius:12px;">
+            <h1 style="color:#ef4444;">Subscription Granted!</h1>
+            <p>Hey ${name},</p>
+            <p>An admin has granted you a <strong>${plan.replace(/_/g, ' ')}</strong> subscription, active until <strong>${expiryDate}</strong>.</p>
+            <a href="${process.env.FRONTEND_URL}/dashboard/premium" style="display:inline-block;background:#ef4444;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:16px;">View Premium</a>
+          </div>
+        `,
+      }).catch(() => {});
+    }
+
+    logger.info(`Admin ${adminId} granted ${plan} (${grantDays} days) to user ${userId}`);
+    res.json({ message: `${plan} subscription granted for ${grantDays} days` });
+  } catch (error) {
+    logger.error('Error granting subscription:', error);
+    res.status(500).json({ error: 'Failed to grant subscription' });
+  }
+};
+
+// Admin only - get/set payment system status (kill switch)
+export const getPaymentStatus = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT setting_value FROM app_settings WHERE setting_key = 'payments_enabled' LIMIT 1`
+    );
+    const enabled = rows.length === 0 || rows[0].setting_value !== 'false';
+    res.json({ enabled });
+  } catch (error) {
+    // If table doesn't exist yet, payments are enabled by default
+    res.json({ enabled: true });
+  }
+};
+
+export const setPaymentStatus = async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const adminId = req.user.id;
+
+    await db.query(
+      `INSERT INTO app_settings (setting_key, setting_value, updated_by)
+       VALUES ('payments_enabled', ?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?, updated_at = NOW()`,
+      [String(enabled), adminId, String(enabled), adminId]
+    );
+
+    logger.info(`Admin ${adminId} set payments_enabled = ${enabled}`);
+    res.json({ message: `Payments ${enabled ? 'enabled' : 'disabled'}`, enabled });
+  } catch (error) {
+    logger.error('Error setting payment status:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+};
+
+// Public — check if payments are enabled (used by Payment page)
+export const checkPaymentsEnabled = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT setting_value FROM app_settings WHERE setting_key = 'payments_enabled' LIMIT 1`
+    );
+    const enabled = rows.length === 0 || rows[0].setting_value !== 'false';
+    res.json({ enabled });
+  } catch {
+    res.json({ enabled: true });
   }
 };

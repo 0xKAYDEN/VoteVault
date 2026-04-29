@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { notifyNewReview } from './notificationController.js';
+import logger from '../utils/logger.js';
 
 export const getReviews = async (req, res) => {
   const { serverId } = req.params;
@@ -36,7 +37,7 @@ export const getReviews = async (req, res) => {
       totalPages: Math.ceil(total[0].count / limit)
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching reviews:', err);
     res.status(500).json({ message: 'Error fetching reviews' });
   }
 };
@@ -65,7 +66,7 @@ export const submitReply = async (req, res) => {
 
     res.json({ message: 'Reply submitted' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error submitting reply:', err);
     res.status(500).json({ message: 'Error submitting reply' });
   }
 };
@@ -107,7 +108,7 @@ export const submitReview = async (req, res) => {
 
     res.json({ message: 'Review submitted successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error submitting review:', err);
     res.status(500).json({ message: 'Error submitting review' });
   }
 };
@@ -142,7 +143,7 @@ export const updateReview = async (req, res) => {
 
     res.json({ message: 'Review updated successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error updating review:', err);
     res.status(500).json({ message: 'Error updating review' });
   }
 };

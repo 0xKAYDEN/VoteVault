@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, replyTo }) => {
   const user = process.env.SMTP_USER || process.env.EMAIL_USER;
 
   if (!user) {
@@ -21,6 +21,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     console.log('--- MOCK EMAIL ---');
     console.log(`To: ${to}`);
     console.log(`Subject: ${subject}`);
+    if (replyTo) console.log(`Reply-To: ${replyTo}`);
     console.log(`Content: ${html}`);
     console.log('------------------');
     return;
@@ -32,6 +33,7 @@ export const sendEmail = async ({ to, subject, html }) => {
       to,
       subject,
       html,
+      ...(replyTo ? { replyTo } : {}),
     });
   } catch (err) {
     logger.error('Error sending email:', err);

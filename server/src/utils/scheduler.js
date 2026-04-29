@@ -8,29 +8,15 @@ import logger from './logger.js';
  */
 export const sendExpiryWarnings = async () => {
   try {
-    // Guard: check if expiry_warned column exists before using it
-    const [cols] = await db.query(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payments' AND COLUMN_NAME = 'expiry_warned'`
+    const [expiring] = await db.query(
+      `SELECT p.user_id, p.plan, p.expires_at, u.email, pr.display_name, pr.username
+       FROM payments p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN profiles pr ON p.user_id = pr.id
+       WHERE p.status = 'active'
+         AND p.expires_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+         AND p.expiry_warned = FALSE`
     );
-
-    let query;
-    if (cols.length > 0) {
-      query = `SELECT p.user_id, p.plan, p.expires_at, u.email, pr.display_name, pr.username
-               FROM payments p
-               JOIN users u ON p.user_id = u.id
-               LEFT JOIN profiles pr ON p.user_id = pr.id
-               WHERE p.status = 'active'
-                 AND p.expires_at BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
-                 AND p.expiry_warned = FALSE`;
-    } else {
-      // Column doesn't exist yet — add it and skip this run
-      await db.query('ALTER TABLE payments ADD COLUMN expiry_warned TINYINT(1) NOT NULL DEFAULT 0');
-      logger.info('Scheduler: added expiry_warned column to payments table');
-      return;
-    }
-
-    const [expiring] = await db.query(query);
 
     for (const row of expiring) {
       const name = row.display_name || row.username || 'there';

@@ -64,13 +64,13 @@ export const googleLogin = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
     };
     res.cookie('auth_token', token, cookieOptions);
     res.json({ user: { id: userId, email } });
   } catch (err) {
-    console.error('Google Auth Error:', err);
+    logger.error('Google Auth Error:', err);
     res.status(400).json({ message: 'Google authentication failed' });
   }
 };
@@ -149,7 +149,7 @@ export const register = async (req, res) => {
       connection.release();
     }
   } catch (err) {
-    console.error(err);
+    logger.error('Registration error:', err);
     res.status(500).json({ message: 'Server error during registration' });
   }
 };
@@ -165,7 +165,7 @@ export const verifyEmail = async (req, res) => {
     await pool.query('UPDATE users SET is_verified = TRUE, verification_token = NULL WHERE id = ?', [users[0].id]);
     res.json({ message: 'Email verified successfully. You can now sign in.' });
   } catch (err) {
-    console.error(err);
+    logger.error('Email verification error:', err);
     res.status(500).json({ message: 'Server error during email verification' });
   }
 };
@@ -200,7 +200,7 @@ export const resendVerification = async (req, res) => {
     });
     res.json({ message: 'If that email exists and is unverified, a new link has been sent.' });
   } catch (err) {
-    console.error(err);
+    logger.error('resendVerification error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -287,7 +287,7 @@ export const login = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       ...(req.body.rememberMe ? { maxAge: 30 * 24 * 60 * 60 * 1000 } : {}), // session vs persistent
     };
@@ -295,7 +295,7 @@ export const login = async (req, res) => {
 
     res.json({ user: { id: user.id, email: user.email, is_verified: user.is_verified } });
   } catch (err) {
-    console.error(err);
+    logger.error('Login error:', err);
     res.status(500).json({ message: 'Server error during login' });
   }
 };
@@ -468,13 +468,13 @@ export const updateEmail = async (req, res) => {
     await pool.query('UPDATE users SET email = ?, is_verified = FALSE WHERE id = ?', [email, userId]);
     res.json({ message: 'Email updated. Please verify your new email.' });
   } catch (err) {
-    console.error(err);
+    logger.error('updateEmail error:', err);
     res.status(500).json({ message: 'Server error updating email' });
   }
 };
 
 export const logout = (req, res) => {
-  res.clearCookie('auth_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+  res.clearCookie('auth_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
   res.json({ message: 'Logged out successfully' });
 };
 
@@ -494,7 +494,7 @@ export const updatePassword = async (req, res) => {
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('updatePassword error:', err);
     res.status(500).json({ message: 'Server error updating password' });
   }
 };

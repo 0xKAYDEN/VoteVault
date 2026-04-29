@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import pool from '../db.js';
 import { cache } from '../utils/cache.js';
 import { PLAN_LIMITS, resolvePlan } from '../middleware/apiKeyAuth.js';
+import logger from '../utils/logger.js';
 
 // ── GET /api/api-keys ─────────────────────────────────────────────────────────
 export const getApiKeys = async (req, res) => {
@@ -60,7 +61,7 @@ export const getApiKeys = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching API keys:', err);
     res.status(500).json({ message: 'Error fetching API keys' });
   }
 };
@@ -88,7 +89,7 @@ export const createApiKey = async (req, res) => {
       message: 'API key created. Save this key — it will not be shown again.',
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Error creating API key:', err);
     res.status(500).json({ message: 'Error creating API key' });
   }
 };
@@ -105,7 +106,7 @@ export const revokeApiKey = async (req, res) => {
     );
     res.json({ message: 'API key revoked' });
   } catch (err) {
-    console.error(err);
+    logger.error('Error revoking API key:', err);
     res.status(500).json({ message: 'Error revoking API key' });
   }
 };
@@ -145,7 +146,7 @@ export const getApiActivity = async (req, res) => {
 
     res.json({ data: rows, year: safeYear, years: yearList });
   } catch (err) {
-    console.error(err);
+    logger.error('Error fetching API activity:', err);
     res.status(500).json({ message: 'Error fetching activity' });
   }
 };
