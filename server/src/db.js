@@ -2,6 +2,7 @@ import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from './utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,17 +10,11 @@ const __dirname = path.dirname(__filename);
 // Load .env from project root (two levels up from server/src)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-// Debug: Check if env vars are loaded
-console.log('='.repeat(50));
-console.log('📊 Database Configuration:');
-console.log('- DB_HOST:', process.env.DB_HOST || '❌ NOT SET');
-console.log('- DB_USER:', process.env.DB_USER || '❌ NOT SET');
-console.log('- DB_NAME:', process.env.DB_NAME || '❌ NOT SET');
-console.log('- DB_PASSWORD:', process.env.DB_PASSWORD ? '✅ SET' : '❌ NOT SET');
-console.log('='.repeat(50));
+const isDev = process.env.NODE_ENV !== 'production';
 
 if (!process.env.DB_USER) {
-  console.error('❌ ERROR: DB_USER is not defined in environment variables!');
+  // Already caught by index.js in production; log here for standalone db.js usage
+  logger.error('DB_USER is not defined — check your .env file');
 }
 
 // Enhanced connection pool configuration
@@ -68,33 +63,29 @@ const RETRY_DELAY = 5000; // 5 seconds
 
 // Test the connection with retry logic
 async function testConnection(attempt = 1) {
-  console.log(`🔄 Testing database connection (attempt ${attempt}/${MAX_RETRY_ATTEMPTS})...`);
+  if (isDev) logger.info(`DB: connecting (attempt ${attempt}/${MAX_RETRY_ATTEMPTS})...`);
 
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
-    console.log(`   Host: ${process.env.DB_HOST}`);
-    console.log(`   Database: ${process.env.DB_NAME}`);
-    console.log(`   Connection pool size: ${poolConfig.connectionLimit}`);
+    // Only log non-sensitive confirmation — no host/db values in production
+    if (isDev) {
+      logger.info(`DB: connected — host=${process.env.DB_HOST} db=${process.env.DB_NAME} pool=${poolConfig.connectionLimit}`);
+    } else {
+      logger.info('DB: connected');
+    }
     connection.release();
     connectionAttempts = 0;
-
-    // Start health check interval
     startHealthCheck();
-
     return true;
   } catch (err) {
-    console.error(`❌ Database connection failed (attempt ${attempt}/${MAX_RETRY_ATTEMPTS}):`);
-    console.error('   Error:', err.message);
-    console.error('   Code:', err.code);
+    logger.error(`DB: connection failed (attempt ${attempt}/${MAX_RETRY_ATTEMPTS}): ${err.message} [${err.code}]`);
 
     if (attempt < MAX_RETRY_ATTEMPTS) {
-      console.log(`   Retrying in ${RETRY_DELAY / 1000} seconds...`);
+      if (isDev) logger.info(`DB: retrying in ${RETRY_DELAY / 1000}s...`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
       return testConnection(attempt + 1);
     } else {
-      console.error('   ❌ Max retry attempts reached. Database connection failed.');
-      console.error('   Please check your database configuration and ensure MySQL is running.');
+      logger.error('DB: max retry attempts reached — check DB config and ensure MySQL is running');
       return false;
     }
   }
@@ -106,18 +97,15 @@ async function healthCheck() {
     const connection = await pool.getConnection();
     await connection.ping();
     connection.release();
-
-    // Reset connection attempts on successful health check
     if (connectionAttempts > 0) {
-      console.log('✅ Database connection restored');
+      logger.info('DB: connection restored');
       connectionAttempts = 0;
     }
   } catch (err) {
     connectionAttempts++;
-    console.error(`⚠️ Database health check failed (attempt ${connectionAttempts}):`, err.message);
-
+    logger.error(`DB: health check failed (${connectionAttempts}): ${err.message}`);
     if (connectionAttempts >= 3) {
-      console.error('❌ Multiple health check failures detected. Connection may be lost.');
+      logger.error('DB: multiple health check failures — connection may be lost');
     }
   }
 }
@@ -142,34 +130,29 @@ function stopHealthCheck() {
 
 // Handle pool errors
 pool.on('error', (err) => {
-  console.error('❌ Database pool error:', err.code, err.message);
-
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.error('   Database connection was closed. Pool will reconnect automatically.');
+  const msgs = {
+    PROTOCOL_CONNECTION_LOST: 'connection was closed — pool will reconnect automatically',
+    ER_CON_COUNT_ERROR:        'too many connections — consider increasing max_connections',
+    ECONNREFUSED:              'connection refused — check if MySQL is running',
+    ETIMEDOUT:                 'connection timed out — check network connectivity',
+    ER_ACCESS_DENIED_ERROR:    'access denied — check database credentials',
+  };
+  const detail = msgs[err.code] || err.message;
+  logger.error(`DB pool error [${err.code}]: ${detail}`);
+  if (['PROTOCOL_CONNECTION_LOST', 'ECONNREFUSED', 'ETIMEDOUT'].includes(err.code)) {
     connectionAttempts++;
-  } else if (err.code === 'ER_CON_COUNT_ERROR') {
-    console.error('   Database has too many connections. Consider increasing max_connections.');
-  } else if (err.code === 'ECONNREFUSED') {
-    console.error('   Database connection was refused. Check if MySQL is running.');
-    connectionAttempts++;
-  } else if (err.code === 'ETIMEDOUT') {
-    console.error('   Database connection timed out. Check network connectivity.');
-    connectionAttempts++;
-  } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-    console.error('   Access denied. Check database credentials.');
   }
 });
 
 // Graceful shutdown
 async function gracefulShutdown() {
-  console.log('🛑 Shutting down database connection pool...');
+  logger.info('DB: shutting down connection pool...');
   stopHealthCheck();
-
   try {
     await pool.end();
-    console.log('✅ Database connection pool closed successfully');
+    logger.info('DB: connection pool closed');
   } catch (err) {
-    console.error('❌ Error closing database pool:', err.message);
+    logger.error(`DB: error closing pool: ${err.message}`);
   }
 }
 

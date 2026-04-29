@@ -9,13 +9,21 @@ const __dirname = path.dirname(__filename);
 // Load .env from project root (two levels up from server/src)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-// Verify critical env vars are loaded
-console.log('Environment check:');
-console.log('- DB_HOST:', process.env.DB_HOST || 'NOT SET');
-console.log('- DB_USER:', process.env.DB_USER || 'NOT SET');
-console.log('- DB_NAME:', process.env.DB_NAME || 'NOT SET');
-// FIX #14: Check the correct env var name
-console.log('- RECAPTCHA_V2_SECRET_KEY:', process.env.RECAPTCHA_V2_SECRET_KEY ? 'SET' : 'NOT SET');
+// Validate critical env vars at startup — fail fast in production, warn in dev
+const REQUIRED_VARS = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
+const isDev = process.env.NODE_ENV !== 'production';
+
+const missing = REQUIRED_VARS.filter(v => !process.env[v]);
+if (missing.length > 0) {
+  // In production, crash immediately — a misconfigured server should not start
+  const msg = `Missing required environment variables: ${missing.join(', ')}`;
+  if (!isDev) {
+    process.stderr.write(`[FATAL] ${msg}\n`);
+    process.exit(1);
+  } else {
+    process.stderr.write(`[WARN]  ${msg}\n`);
+  }
+}
 
 import express from 'express';
 import cors from 'cors';
@@ -57,20 +65,20 @@ import { startScheduler } from './utils/scheduler.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Request logging middleware - log every incoming request
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   logger.info(`→ ${req.method} ${req.url} - IP: ${req.ip}`);
 
-  // Log request body for POST/PUT/PATCH (excluding sensitive data)
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+  // Only log request bodies in development — never in production
+  if (isDev && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const sanitizedBody = { ...req.body };
-    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.password)       sanitizedBody.password       = '[REDACTED]';
     if (sanitizedBody.recaptchaToken) sanitizedBody.recaptchaToken = '[REDACTED]';
+    if (sanitizedBody.txHash)         sanitizedBody.txHash         = '[REDACTED]';
     logger.info(`  Body: ${JSON.stringify(sanitizedBody)}`);
   }
 
-  // Log response
   res.on('finish', () => {
     const duration = Date.now() - start;
     logger.info(`← ${req.method} ${req.url} - ${res.statusCode} - ${duration}ms`);
