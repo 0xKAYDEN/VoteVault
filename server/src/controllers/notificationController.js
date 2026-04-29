@@ -156,13 +156,13 @@ export const notifyNewMessage = async (senderId, receiverId) => {
 
     const senderName = senders[0].display_name || senders[0].username;
 
-    // Create in-app notification
+    // Create in-app notification — link goes to the chat with the sender
     await createNotification(
       receiverId,
       'message',
       'New Message',
       `${senderName} sent you a message`,
-      `/user/${senderId}`
+      `/messages/${senderId}`
     );
 
     // Check if user wants email notifications
@@ -190,9 +190,9 @@ export const notifyNewMessage = async (senderId, receiverId) => {
 // Send review notification (for server owners)
 export const notifyNewReview = async (serverId, reviewerId) => {
   try {
-    // Get server owner
+    // Get server owner and slug
     const [servers] = await db.query(
-      'SELECT owner_id, name FROM servers WHERE id = ?',
+      'SELECT owner_id, name, slug FROM servers WHERE id = ?',
       [serverId]
     );
 
@@ -200,6 +200,7 @@ export const notifyNewReview = async (serverId, reviewerId) => {
 
     const ownerId = servers[0].owner_id;
     const serverName = servers[0].name;
+    const serverSlug = servers[0].slug; // use slug, not numeric id
 
     // Get reviewer info
     const [reviewers] = await db.query(
@@ -211,13 +212,13 @@ export const notifyNewReview = async (serverId, reviewerId) => {
       ? (reviewers[0].display_name || reviewers[0].username)
       : 'Someone';
 
-    // Create in-app notification
+    // Create in-app notification — link uses slug so the frontend route works
     await createNotification(
       ownerId,
       'review',
       'New Review',
       `${reviewerName} left a review on ${serverName}`,
-      `/server/${serverId}`
+      `/server/${serverSlug}`
     );
 
     // Check if user wants email notifications
@@ -233,7 +234,7 @@ export const notifyNewReview = async (serverId, reviewerId) => {
         html: `
           <h2>New Review</h2>
           <p><strong>${reviewerName}</strong> left a review on your server <strong>${serverName}</strong>.</p>
-          <p><a href="${process.env.FRONTEND_URL}/server/${serverId}">View Review</a></p>
+          <p><a href="${process.env.FRONTEND_URL}/server/${serverSlug}">View Review</a></p>
         `
       });
     }

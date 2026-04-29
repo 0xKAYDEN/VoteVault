@@ -1,6 +1,8 @@
 import db from '../db.js';
 import { notifyFriendRequest } from './notificationController.js';
 
+const FREE_FRIEND_LIMIT = 50;
+
 // Send friend request
 export const sendFriendRequest = async (req, res) => {
   try {
@@ -30,6 +32,26 @@ export const sendFriendRequest = async (req, res) => {
 
     if (existingRequest.length > 0) {
       return res.status(400).json({ error: 'Friend request already sent' });
+    }
+
+    // Check friend limit for free users
+    const [premiumCheck] = await db.query(
+      `SELECT plan FROM payments WHERE user_id = ? AND status = 'active' AND expires_at > NOW() LIMIT 1`,
+      [senderId]
+    );
+    const isPremium = premiumCheck.length > 0;
+
+    if (!isPremium) {
+      const [friendCount] = await db.query(
+        `SELECT COUNT(*) as count FROM friendships WHERE user_id_1 = ? OR user_id_2 = ?`,
+        [senderId, senderId]
+      );
+      if (friendCount[0].count >= FREE_FRIEND_LIMIT) {
+        return res.status(403).json({
+          error: `Free accounts are limited to ${FREE_FRIEND_LIMIT} friends. Upgrade to Premium for unlimited friends.`,
+          requiresPremium: true,
+        });
+      }
     }
 
     // Create friend request

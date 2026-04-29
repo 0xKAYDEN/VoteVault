@@ -39,7 +39,7 @@ class TokenManager {
   private static TOKEN_KEY = 'token';
 
   static getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    return localStorage.getItem(this.TOKEN_KEY) || sessionStorage.getItem(this.TOKEN_KEY);
   }
 
   static setToken(token: string): void {
@@ -48,6 +48,7 @@ class TokenManager {
 
   static removeToken(): void {
     localStorage.removeItem(this.TOKEN_KEY);
+    sessionStorage.removeItem(this.TOKEN_KEY);
   }
 
   static hasToken(): boolean {
@@ -144,8 +145,9 @@ class ApiClient {
     this.interceptors.addErrorInterceptor(async (error) => {
       if (error.status === 401) {
         TokenManager.removeToken();
-        // Redirect to login if not already there
-        if (window.location.pathname !== '/auth') {
+        // Only redirect if not already on auth page and not in dashboard (dashboard has its own guard)
+        const path = window.location.pathname;
+        if (path !== '/auth' && !path.startsWith('/dashboard') && !path.startsWith('/admin')) {
           window.location.href = '/auth';
         }
       }

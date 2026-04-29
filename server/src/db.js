@@ -45,9 +45,8 @@ const poolConfig = {
   acquireTimeout: 60000, // 60 seconds to acquire connection from pool
   timeout: 60000, // 60 seconds for query execution
 
-  // Charset and timezone
+  // Charset and timezone — use local system timezone to match MySQL's NOW()
   charset: 'utf8mb4',
-  timezone: '+00:00',
 
   // Additional MySQL settings
   multipleStatements: false, // Security: prevent SQL injection
@@ -159,21 +158,6 @@ pool.on('error', (err) => {
   } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {
     console.error('   Access denied. Check database credentials.');
   }
-});
-
-// Handle connection acquisition
-pool.on('acquire', (connection) => {
-  console.log('🔗 Connection %d acquired', connection.threadId);
-});
-
-// Handle connection release
-pool.on('release', (connection) => {
-  console.log('🔓 Connection %d released', connection.threadId);
-});
-
-// Handle connection enqueue
-pool.on('enqueue', () => {
-  console.log('⏳ Waiting for available connection slot');
 });
 
 // Graceful shutdown

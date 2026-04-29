@@ -109,7 +109,7 @@ export const submitReport = async (req, res) => {
     const reporterId = req.user.id;
     const { reportedType, reportedId, reason, description } = req.body;
 
-    if (!['user', 'server', 'review'].includes(reportedType)) {
+    if (!['user', 'server', 'review', 'thread'].includes(reportedType)) {
       return res.status(400).json({ error: 'Invalid report type' });
     }
 
@@ -141,7 +141,7 @@ export const submitReport = async (req, res) => {
   }
 };
 
-// Search users
+// Search users — supports "username", "display name", or "username#1234"
 export const searchUsers = async (req, res) => {
   try {
     const { query, limit = 20 } = req.query;
@@ -150,23 +150,40 @@ export const searchUsers = async (req, res) => {
       return res.status(400).json({ error: 'Search query must be at least 2 characters' });
     }
 
-    const searchTerm = `%${query.trim()}%`;
+    const q = query.trim();
+    let users;
 
-    const [users] = await db.query(
-      `SELECT p.id, p.username, p.display_name, p.avatar_url, p.bio,
-       (SELECT GROUP_CONCAT(role) FROM user_roles WHERE user_id = p.id) as roles
-       FROM profiles p
-       WHERE p.username LIKE ? OR p.display_name LIKE ?
-       LIMIT ?`,
-      [searchTerm, searchTerm, Number(limit)]
-    );
+    // Check if searching by username#discriminator format
+    const tagMatch = q.match(/^(.+)#(\d{1,4})$/);
+    if (tagMatch) {
+      const [, uname, disc] = tagMatch;
+      const [rows] = await db.query(
+        `SELECT p.id, p.username, p.display_name, p.avatar_url, p.bio, p.discriminator,
+         (SELECT GROUP_CONCAT(role) FROM user_roles WHERE user_id = p.id) as roles
+         FROM profiles p
+         WHERE p.username LIKE ? AND p.discriminator = ?
+         LIMIT ?`,
+        [`%${uname}%`, parseInt(disc), Number(limit)]
+      );
+      users = rows;
+    } else {
+      const searchTerm = `%${q}%`;
+      const [rows] = await db.query(
+        `SELECT p.id, p.username, p.display_name, p.avatar_url, p.bio, p.discriminator,
+         (SELECT GROUP_CONCAT(role) FROM user_roles WHERE user_id = p.id) as roles
+         FROM profiles p
+         WHERE p.username LIKE ? OR p.display_name LIKE ?
+         LIMIT ?`,
+        [searchTerm, searchTerm, Number(limit)]
+      );
+      users = rows;
+    }
 
-    const formatted = users.map(u => ({
+    res.json(users.map(u => ({
       ...u,
-      roles: u.roles ? u.roles.split(',') : []
-    }));
-
-    res.json(formatted);
+      roles: u.roles ? u.roles.split(',') : [],
+      tag: `${u.username}#${String(u.discriminator).padStart(4, '0')}`,
+    })));
   } catch (error) {
     logger.error('Error searching users:', error);
     res.status(500).json({ error: 'Failed to search users' });

@@ -13,6 +13,10 @@ export const createServerSchema = z.object({
     banner_url: urlSchema,
     website_url: urlSchema,
     discord_url: urlSchema,
+    youtube_url: urlSchema,
+    facebook_url: urlSchema,
+    twitter_url: urlSchema,
+    twitch_url: urlSchema,
     version: nullableString,
     rate: nullableString,
     region: nullableString,
@@ -23,9 +27,7 @@ export const createServerSchema = z.object({
 });
 
 export const updateServerSchema = z.object({
-  params: z.object({
-    id: z.string()
-  }),
+  params: z.object({ id: z.string() }),
   body: z.object({
     name: z.string().min(2).max(100).optional(),
     short_description: z.string().min(5).max(255).optional(),
@@ -34,12 +36,15 @@ export const updateServerSchema = z.object({
     banner_url: urlSchema,
     website_url: urlSchema,
     discord_url: urlSchema,
+    youtube_url: urlSchema,
+    facebook_url: urlSchema,
+    twitter_url: urlSchema,
+    twitch_url: urlSchema,
     version: nullableString,
     rate: nullableString,
     region: nullableString,
     features: nullableString,
     events_time: nullableString,
     upcoming_updates: nullableString,
-    status: z.enum(['pending', 'approved', 'rejected', 'banned']).optional(),
   })
 });

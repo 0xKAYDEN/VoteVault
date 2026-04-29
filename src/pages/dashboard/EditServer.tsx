@@ -42,6 +42,7 @@ const EditServer = () => {
     version: "", rate: "", region: "", website_url: "", discord_url: "",
     banner_url: "", logo_url: "",
     features: "", events_time: "", upcoming_updates: "",
+    youtube_url: "", facebook_url: "", twitter_url: "", twitch_url: "",
   });
 
   useEffect(() => {
@@ -74,6 +75,10 @@ const EditServer = () => {
           features: serverData.features || "",
           events_time: serverData.events_time || "",
           upcoming_updates: serverData.upcoming_updates || "",
+          youtube_url: (serverData as any).youtube_url || "",
+          facebook_url: (serverData as any).facebook_url || "",
+          twitter_url: (serverData as any).twitter_url || "",
+          twitch_url: (serverData as any).twitch_url || "",
         });
 
         setCategories(allCategories);
@@ -107,22 +112,25 @@ const EditServer = () => {
     }
     
     setBusy(true);
-      const update = {
-        name: form.name.trim(),
-        short_description: form.short_description.trim(),
-        long_description: form.long_description?.trim() || null,
-        version: form.version?.trim() || null,
-        rate: form.rate?.trim() || null,
-        region: form.region?.trim() || null,
-        website_url: form.website_url?.trim() || null,
-        discord_url: form.discord_url?.trim() || null,
-        banner_url: form.banner_url?.trim() || null,
-        logo_url: form.logo_url?.trim() || null,
-        features: form.features?.trim() || null,
-        events_time: form.events_time?.trim() || null,
-        upcoming_updates: form.upcoming_updates?.trim() || null,
-        updated_at: new Date().toISOString(),
-      };
+    const update = {
+      name: form.name.trim(),
+      short_description: form.short_description.trim(),
+      long_description: form.long_description?.trim() || null,
+      version: form.version?.trim() || null,
+      rate: form.rate?.trim() || null,
+      region: form.region?.trim() || null,
+      website_url: form.website_url?.trim() || null,
+      discord_url: form.discord_url?.trim() || null,
+      banner_url: form.banner_url?.trim() || null,
+      logo_url: form.logo_url?.trim() || null,
+      features: form.features?.trim() || null,
+      events_time: form.events_time?.trim() || null,
+      upcoming_updates: form.upcoming_updates?.trim() || null,
+      youtube_url: form.youtube_url?.trim() || null,
+      facebook_url: form.facebook_url?.trim() || null,
+      twitter_url: form.twitter_url?.trim() || null,
+      twitch_url: form.twitch_url?.trim() || null,
+    };
 
     try {
       await api.servers.update(Number(id), update);
@@ -196,6 +204,16 @@ const EditServer = () => {
         </div>
 
         <Field label="Banner URL" v={form.banner_url} onChange={set("banner_url")} placeholder="https://...banner.jpg" />
+
+        <div className="space-y-4 pt-4 border-t border-white/5">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Social Media</h3>
+          <div className="grid md:grid-cols-2 gap-3">
+            <Field label="YouTube URL" v={form.youtube_url} onChange={set("youtube_url")} placeholder="https://youtube.com/@channel" />
+            <Field label="Facebook URL" v={form.facebook_url} onChange={set("facebook_url")} placeholder="https://facebook.com/page" />
+            <Field label="Twitter / X URL" v={form.twitter_url} onChange={set("twitter_url")} placeholder="https://twitter.com/handle" />
+            <Field label="Twitch URL" v={form.twitch_url} onChange={set("twitch_url")} placeholder="https://twitch.tv/channel" />
+          </div>
+        </div>
 
         <div className="space-y-4 pt-4 border-t border-white/5">
           <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Categories</h3>

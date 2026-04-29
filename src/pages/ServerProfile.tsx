@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit, ShieldCheck } from "lucide-react";
+import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit, ShieldCheck, Flag, Youtube, Facebook, Twitter, Twitch, Trophy, UserCircle } from "lucide-react";
 import { VoteDialog } from "@/components/VoteDialog";
 import { ServerRow } from "@/components/ServerCard";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,84 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// ─── Report Button ────────────────────────────────────────────────────────────
+function ReportButton({ serverId, serverName }: { serverId: number; serverName: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [details, setDetails] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reason) return;
+    setSubmitting(true);
+    try {
+      await api.userExperience.submitReport({
+        reportedType: 'server',
+        reportedId: String(serverId),
+        reason,
+        description: details,
+      });
+      toast.success("Report submitted. Our team will review it.");
+      setOpen(false);
+      setReason(""); setDetails("");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to submit report");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" title="Report server">
+          <Flag className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="glass-strong border-white/10">
+        <DialogHeader>
+          <DialogTitle>Report "{serverName}"</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div>
+            <Label>Reason</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Select a reason..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spam">Spam or misleading</SelectItem>
+                <SelectItem value="inappropriate">Inappropriate content</SelectItem>
+                <SelectItem value="fake">Fake or fraudulent server</SelectItem>
+                <SelectItem value="vote_manipulation">Vote manipulation</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Additional details (optional)</Label>
+            <Textarea
+              value={details}
+              onChange={e => setDetails(e.target.value)}
+              placeholder="Describe the issue..."
+              rows={3}
+              className="mt-1"
+              maxLength={500}
+            />
+          </div>
+          <Button onClick={handleSubmit} disabled={!reason || submitting} className="w-full" variant="destructive">
+            {submitting ? "Submitting..." : "Submit Report"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 import { UserTags } from "@/components/UserTag";
 import { format, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import {
@@ -29,7 +107,19 @@ const ServerProfile = () => {
   const [params, setParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [server, setServer] = useState<(ServerRow & { long_description: string | null; website_url: string | null; discord_url: string | null; owner_id: string }) | null>(null);
+  const [server, setServer] = useState<(ServerRow & {
+    long_description: string | null;
+    website_url: string | null;
+    discord_url: string | null;
+    youtube_url: string | null;
+    facebook_url: string | null;
+    twitter_url: string | null;
+    twitch_url: string | null;
+    owner_id: string;
+    owner_username: string | null;
+    owner_display_name: string | null;
+    owner_avatar_url: string | null;
+  }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -37,22 +127,43 @@ const ServerProfile = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [voteOpen, setVoteOpen] = useState(false);
   const [recentVoted, setRecentVoted] = useState(false);
+  const [voteTrackingParam, setVoteTrackingParam] = useState<string | undefined>(undefined);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
   const [voteHistory, setVoteHistory] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [ownerProfile, setOwnerProfile] = useState<any>(null);
 
   const load = useCallback(async () => {
     if (!slug) return;
     try {
-      const data = await api.servers.getBySlug(slug);
+      // If slug is a pure number it's a legacy numeric ID from old notifications — fetch by ID
+      let data;
+      if (/^\d+$/.test(slug)) {
+        data = await api.servers.getById(Number(slug));
+      } else {
+        data = await api.servers.getBySlug(slug);
+      }
       if (data) {
         setServer(data as any);
         loadReviews(data.id);
         loadStats(data.id);
         api.servers.incrementVisits(data.id);
+        // Load owner profile
+        if (data.owner_id) {
+          api.users.getProfile(data.owner_id)
+            .then(p => setOwnerProfile(p))
+            .catch(() => {});
+        }
+        // Load server achievements (user achievements for the owner as proxy)
+        if (data.owner_id) {
+          api.achievements.getUserAchievements(data.owner_id)
+            .then(a => setAchievements(a || []))
+            .catch(() => {});
+        }
       }
     } catch (err) {
       console.error("Error loading server:", err);
@@ -140,6 +251,7 @@ const ServerProfile = () => {
 
   useEffect(() => {
     if (params.get("vote") === "1" && server && user) {
+      setVoteTrackingParam(params.get("ref") || undefined);
       setVoteOpen(true);
       setParams({}, { replace: true });
     }
@@ -247,7 +359,7 @@ const ServerProfile = () => {
               <div className="flex items-center gap-2.5">
                 <h1 className="font-display text-3xl md:text-5xl font-bold text-gradient">{server.name}</h1>
                 {server.is_verified && (
-                  <ShieldCheck className="h-6 w-6 md:h-8 md:w-8 text-primary-glow shrink-0" title="Verified Server" />
+                  <ShieldCheck className="h-6 w-6 md:h-8 md:w-8 text-primary-glow shrink-0" aria-label="Verified Server" />
                 )}
               </div>
               <p className="text-muted-foreground mt-1">{server.short_description}</p>
@@ -273,9 +385,15 @@ const ServerProfile = () => {
                     </a>
                   </Button>
                 )}
-                <Button variant="vote" size="lg" onClick={() => setVoteOpen(true)} className="flex-[2] md:flex-none">
+                <Button variant="vote" size="lg" onClick={() => {
+                  if (!user) { window.location.href = "/auth"; return; }
+                  setVoteOpen(true);
+                }} className="flex-[2] md:flex-none">
                   <Zap className="h-5 w-5" /> Vote Now
                 </Button>
+                {user && (
+                  <ReportButton serverId={server.id} serverName={server.name} />
+                )}
               </div>
             </div>
           </div>
@@ -287,14 +405,14 @@ const ServerProfile = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-            <Stat label="Total Votes" value={server.vote_count.toLocaleString()} icon={<Zap className="h-4 w-4 text-primary" />} highlight={recentVoted} />
-            <Stat label="Total Visits" value={server.profile_visits.toLocaleString()} icon={<Eye className="h-4 w-4 text-primary" />} highlight={recentVoted} />
+            <Stat label="Total Votes" value={(server.vote_count ?? 0).toLocaleString()} icon={<Zap className="h-4 w-4 text-primary" />} highlight={recentVoted} />
+            <Stat label="Total Visits" value={(server.profile_visits ?? 0).toLocaleString()} icon={<Eye className="h-4 w-4 text-primary" />} highlight={recentVoted} />
             <Stat 
               label="Avg Rating" 
-              value={`${Number(server.rating_avg).toFixed(1)} (${server.rating_count})`} 
+              value={`${Number(server.rating_avg ?? 0).toFixed(1)} (${server.rating_count ?? 0})`} 
               icon={<Star className="h-4 w-4 text-[hsl(45_95%_60%)]" />} 
             />
-            <Stat label="Active Players" value={server.active_players.toLocaleString()} icon={<Users className="h-4 w-4" />} />
+            <Stat label="Active Players" value={(server.active_players ?? 0).toLocaleString()} icon={<Users className="h-4 w-4" />} />
             <Stat label="Server Region" value={server.region ?? "—"} icon={<Globe className="h-4 w-4" />} />
           </div>
         </div>
@@ -321,8 +439,28 @@ const ServerProfile = () => {
                 </Button>
               )}
               {server.discord_url && (
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" asChild className="border-indigo-500/30 hover:bg-indigo-500/10">
                   <a href={server.discord_url} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" />Discord</a>
+                </Button>
+              )}
+              {(server as any).youtube_url && (
+                <Button variant="outline" size="sm" asChild className="border-red-500/30 hover:bg-red-500/10">
+                  <a href={(server as any).youtube_url} target="_blank" rel="noopener noreferrer"><Youtube className="h-4 w-4" />YouTube</a>
+                </Button>
+              )}
+              {(server as any).facebook_url && (
+                <Button variant="outline" size="sm" asChild className="border-blue-500/30 hover:bg-blue-500/10">
+                  <a href={(server as any).facebook_url} target="_blank" rel="noopener noreferrer"><Facebook className="h-4 w-4" />Facebook</a>
+                </Button>
+              )}
+              {(server as any).twitter_url && (
+                <Button variant="outline" size="sm" asChild className="border-sky-500/30 hover:bg-sky-500/10">
+                  <a href={(server as any).twitter_url} target="_blank" rel="noopener noreferrer"><Twitter className="h-4 w-4" />Twitter</a>
+                </Button>
+              )}
+              {(server as any).twitch_url && (
+                <Button variant="outline" size="sm" asChild className="border-purple-500/30 hover:bg-purple-500/10">
+                  <a href={(server as any).twitch_url} target="_blank" rel="noopener noreferrer"><Twitch className="h-4 w-4" />Twitch</a>
                 </Button>
               )}
             </div>
@@ -384,6 +522,83 @@ const ServerProfile = () => {
               )}
             </div>
           </div>
+
+          {/* Owner Card + Achievements row */}
+          <div className="grid md:grid-cols-2 gap-4 mt-4">
+            {/* Server Owner */}
+            <div className="glass rounded-2xl p-5">
+              <h3 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
+                <UserCircle className="h-4 w-4 text-primary" /> Server Owner
+              </h3>
+              {ownerProfile ? (
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-14 w-14 border-2 border-primary/30">
+                    <AvatarImage src={ownerProfile.avatar_url} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-lg font-bold">
+                      {(ownerProfile.display_name || ownerProfile.username || "?")[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      to={`/user/${server.owner_id}`}
+                      className="font-bold text-base hover:text-primary transition-colors block truncate"
+                    >
+                      {ownerProfile.display_name || ownerProfile.username}
+                    </Link>
+                    {ownerProfile.username && ownerProfile.display_name && (
+                      <p className="text-xs text-muted-foreground">@{ownerProfile.username}</p>
+                    )}
+                    {ownerProfile.bio && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{ownerProfile.bio}</p>
+                    )}
+                    <div className="flex gap-2 mt-2">
+                      <Button size="sm" variant="outline" asChild className="text-xs h-7">
+                        <Link to={`/user/${server.owner_id}`}>View Profile</Link>
+                      </Button>
+                      {user && user.id !== server.owner_id && (
+                        <Button size="sm" variant="outline" asChild className="text-xs h-7">
+                          <Link to={`/messages/${server.owner_id}`}>
+                            <MessageCircle className="h-3 w-3 mr-1" /> Message
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Owner info unavailable.</p>
+              )}
+            </div>
+
+            {/* Achievements */}
+            <div className="glass rounded-2xl p-5">
+              <h3 className="font-display text-lg font-bold mb-4 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-primary" /> Achievements
+              </h3>
+              {achievements.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {achievements.slice(0, 9).map((a: any) => (
+                    <div
+                      key={a.id}
+                      title={`${a.name}: ${a.description}`}
+                      className="flex flex-col items-center gap-1 glass rounded-xl p-2 text-center hover:border-primary/30 transition-colors cursor-default"
+                    >
+                      <span className="text-2xl">{a.icon || "🏆"}</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{a.name}</span>
+                    </div>
+                  ))}
+                  {achievements.length > 9 && (
+                    <div className="flex flex-col items-center justify-center glass rounded-xl p-2 text-center">
+                      <span className="text-xs text-muted-foreground font-semibold">+{achievements.length - 9}</span>
+                      <span className="text-[10px] text-muted-foreground">more</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No achievements yet.</p>
+              )}
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="info" className="mt-4">
           <div className="glass rounded-2xl p-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -391,7 +606,7 @@ const ServerProfile = () => {
             <Info label="Rate" value={server.rate ?? "—"} />
             <Info label="Region" value={server.region ?? "—"} />
             <Info label="Status" value={server.is_online ? "Online" : "Offline"} />
-            <Info label="Total Votes" value={server.vote_count.toLocaleString()} />
+            <Info label="Total Votes" value={(server.vote_count ?? 0).toLocaleString()} />
             <Info label="Reviews" value={`${Number(server.rating_avg).toFixed(1)} ★ (${server.rating_count} reviews)`} />
           </div>
         </TabsContent>
@@ -706,25 +921,25 @@ const ServerProfile = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Total Votes</div>
-                <div className="text-2xl font-bold font-mono-num">{server.vote_count.toLocaleString()}</div>
+                <div className="text-2xl font-bold font-mono-num">{(server.vote_count ?? 0).toLocaleString()}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Average Rating</div>
-                <div className="text-2xl font-bold font-mono-num">{Number(server.rating_avg).toFixed(1)} / 5.0</div>
+                <div className="text-2xl font-bold font-mono-num">{Number(server.rating_avg ?? 0).toFixed(1)} / 5.0</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Review Count</div>
-                <div className="text-2xl font-bold font-mono-num">{server.rating_count}</div>
+                <div className="text-2xl font-bold font-mono-num">{server.rating_count ?? 0}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Players Online</div>
-                <div className="text-2xl font-bold font-mono-num">{server.active_players.toLocaleString()}</div>
+                <div className="text-2xl font-bold font-mono-num">{(server.active_players ?? 0).toLocaleString()}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
                   <Eye className="h-3 w-3" /> Total Visits
                 </div>
-                <div className="text-2xl font-bold font-mono-num">{server.profile_visits.toLocaleString()}</div>
+                <div className="text-2xl font-bold font-mono-num">{(server.profile_visits ?? 0).toLocaleString()}</div>
               </div>
             </div>
           </div>
@@ -736,6 +951,7 @@ const ServerProfile = () => {
         onOpenChange={setVoteOpen}
         serverId={server.id}
         serverName={server.name}
+        trackingParam={voteTrackingParam}
         onSuccess={onVoteSuccess}
       />
     </div>

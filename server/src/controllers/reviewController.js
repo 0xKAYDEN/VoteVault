@@ -74,7 +74,16 @@ export const submitReview = async (req, res) => {
   const { server_id, rating, comment } = req.body;
   const user_id = req.user.id;
 
+  // FIX #4: Prevent duplicate reviews
   try {
+    const [existing] = await pool.query(
+      'SELECT id FROM reviews WHERE server_id = ? AND user_id = ?',
+      [server_id, user_id]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ message: 'You have already reviewed this server. Edit your existing review instead.' });
+    }
+
     const public_id = uuidv4();
     await pool.query(
       `INSERT INTO reviews (public_id, server_id, user_id, rating, comment)

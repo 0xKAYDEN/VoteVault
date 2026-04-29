@@ -67,8 +67,8 @@ const Contact = () => {
               <p className="text-sm text-muted-foreground mb-2">
                 Send us an email and we'll respond within 24 hours.
               </p>
-              <a href="mailto:support@conquertop100.com" className="text-sm text-primary hover:text-primary-glow transition">
-                support@conquertop100.com
+              <a href="mailto:votevaultsupport@gmail.com" className="text-sm text-primary hover:text-primary-glow transition">
+                votevaultsupport@gmail.com
               </a>
             </div>
           </div>

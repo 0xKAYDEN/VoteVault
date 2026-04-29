@@ -1,15 +1,15 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip as RechartsTooltip, ResponsiveContainer, 
-  LineChart, Line, AreaChart, Area
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
+  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
 } from "recharts";
-import { 
-  Download, Filter, Calendar as CalendarIcon, 
-  BarChart3, Loader2, Search, FileDown, 
-  PieChart, TrendingUp, Info
+import {
+  Download, Filter, Calendar as CalendarIcon,
+  BarChart3, Loader2, Search, FileDown,
+  PieChart as PieChartIcon, TrendingUp, Info, Globe, Clock, Share2, MapPin, Wifi
 } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import {
   ChartConfig,
   ChartContainer,
@@ -28,12 +31,24 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
+// Convert ISO country code to flag emoji
+const countryFlag = (code: string) => {
+  if (!code || code.length !== 2) return "🌐";
+  return code.toUpperCase().replace(/./g, c =>
+    String.fromCodePoint(127397 + c.charCodeAt(0))
+  );
+};
+
 const VoteAnalytics = () => {
   const { user } = useAuth();
   const [servers, setServers] = useState<any[]>([]);
   const [votes, setVotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchingVotes, setFetchingVotes] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [geoData, setGeoData] = useState<any>(null);
+  const [fetchingGeo, setFetchingGeo] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   // Filters
   const [selectedServer, setSelectedServer] = useState<string>("all");
@@ -50,8 +65,11 @@ const VoteAnalytics = () => {
       try {
         const data = await api.servers.getMyServers();
         setServers(data || []);
-      } catch (err) {
-        console.error("Error loading servers for analytics:", err);
+      } catch (err: any) {
+        // Don't let 401 errors bubble up to the global interceptor
+        if (err?.status !== 401) {
+          console.error("Error loading servers for analytics:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -62,7 +80,6 @@ const VoteAnalytics = () => {
   const loadVotes = async () => {
     if (!user || servers.length === 0) return;
     setFetchingVotes(true);
-    
     try {
       const data = await api.votes.getAnalytics({
         server_id: selectedServer,
@@ -78,9 +95,27 @@ const VoteAnalytics = () => {
     }
   };
 
+  const loadGeo = async () => {
+    if (!user || servers.length === 0) return;
+    setFetchingGeo(true);
+    try {
+      const data = await api.votes.getGeoAnalytics({
+        server_id: selectedServer,
+        from: dateRange.from.toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      });
+      setGeoData(data);
+    } catch (error: any) {
+      console.error("Failed to fetch geo data:", error.message);
+    } finally {
+      setFetchingGeo(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading && servers.length > 0) {
       loadVotes();
+      loadGeo();
     }
   }, [loading, servers, selectedServer, dateRange, challengeType]);
 
@@ -123,10 +158,62 @@ const VoteAnalytics = () => {
     return Object.entries(dist).map(([name, value]) => ({ name, value }));
   }, [votes]);
 
+  // Geographic distribution
+  const geoDistribution = useMemo(() => {
+    const geo: Record<string, number> = {};
+    votes.forEach(v => {
+      const country = v.voter_country || "Unknown";
+      geo[country] = (geo[country] || 0) + 1;
+    });
+    return Object.entries(geo)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [votes]);
+
+  // Peak voting times
+  const peakTimes = useMemo(() => {
+    const hours: Record<number, number> = {};
+    votes.forEach(v => {
+      const hour = new Date(v.voted_at).getHours();
+      hours[hour] = (hours[hour] || 0) + 1;
+    });
+    return Array.from({ length: 24 }, (_, i) => ({
+      hour: `${i}:00`,
+      votes: hours[i] || 0
+    }));
+  }, [votes]);
+
+  // Referrer tracking (simulated - would need backend support)
+  const referrerData = useMemo(() => {
+    const referrers: Record<string, number> = {};
+    votes.forEach(v => {
+      const ref = v.referrer || "Direct";
+      referrers[ref] = (referrers[ref] || 0) + 1;
+    });
+    return Object.entries(referrers)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [votes]);
+
+  // Demographics (device/browser - simulated)
+  const demographics = useMemo(() => {
+    const suspicious = votes.filter(v => v.is_suspicious).length;
+    const verified = votes.length - suspicious;
+    const conversionRate = votes.length > 0 ? ((verified / votes.length) * 100).toFixed(2) : "0";
+    return {
+      totalVotes: votes.length,
+      verified,
+      suspicious,
+      conversionRate,
+      avgVotesPerDay: votes.length > 0 ? (votes.length / Math.max(1, dateRange.to.getTime() - dateRange.from.getTime()) * 86400000).toFixed(2) : "0"
+    };
+  }, [votes, dateRange]);
+
   const exportToCSV = () => {
     if (votes.length === 0) return toast.error("No data to export");
 
-    const headers = ["ID", "Server", "Voted At", "Challenge Type", "Country", "City", "Is Suspicious"];
+    const headers = ["ID", "Server", "Voted At", "Challenge Type", "Country", "Country Code", "Region", "City", "ISP", "Referrer", "Is Suspicious"];
     const csvRows = [
       headers.join(","),
       ...votes.map(v => [
@@ -135,7 +222,11 @@ const VoteAnalytics = () => {
         v.voted_at,
         v.challenge_type_passed || "N/A",
         v.voter_country || "N/A",
+        v.voter_country_code || "N/A",
+        v.voter_region || "N/A",
         v.voter_city || "N/A",
+        v.voter_isp || "N/A",
+        v.referrer || "Direct",
         v.is_suspicious ? "Yes" : "No"
       ].map(field => `"${field}"`).join(","))
     ];
@@ -150,6 +241,38 @@ const VoteAnalytics = () => {
     link.click();
     document.body.removeChild(link);
     toast.success("CSV export started");
+  };
+
+  const exportToPDF = async () => {
+    if (!pdfRef.current) return toast.error("PDF content not ready");
+    setExportingPDF(true);
+    try {
+      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+      }
+
+      pdf.save(`vote-analytics-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      toast.success("PDF export completed");
+    } catch (error) {
+      toast.error("Failed to export PDF");
+      console.error(error);
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   const chartConfig = {
@@ -184,9 +307,15 @@ const VoteAnalytics = () => {
           <h1 className="font-display text-3xl font-bold">Vote Analytics</h1>
           <p className="text-muted-foreground text-sm">Analyze your server's voting performance.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportToCSV} disabled={fetchingVotes || votes.length === 0}>
-          <FileDown className="h-4 w-4 mr-2" /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportToCSV} disabled={fetchingVotes || votes.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exportingPDF || votes.length === 0}>
+            {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -255,13 +384,41 @@ const VoteAnalytics = () => {
               </Select>
             </div>
 
-            <Button variant="hero" onClick={loadVotes} disabled={fetchingVotes}>
+            <Button variant="hero" onClick={() => { loadVotes(); loadGeo(); }} disabled={fetchingVotes}>
               {fetchingVotes ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
               Apply Filters
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="glass-strong border-white/5">
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total Votes</p>
+            <p className="text-2xl font-bold font-mono-num text-primary-glow mt-1">{demographics.totalVotes}</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/5">
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Verified</p>
+            <p className="text-2xl font-bold font-mono-num text-emerald-400 mt-1">{demographics.verified}</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/5">
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Conversion Rate</p>
+            <p className="text-2xl font-bold font-mono-num text-blue-400 mt-1">{demographics.conversionRate}%</p>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/5">
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Avg/Day</p>
+            <p className="text-2xl font-bold font-mono-num text-purple-400 mt-1">{demographics.avgVotesPerDay}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Main Chart */}
       <div className="grid grid-cols-1 gap-6">
@@ -394,70 +551,258 @@ const VoteAnalytics = () => {
         </Card>
       </div>
 
-      {/* Suspicious Votes Info */}
-      {/* Suspicious Votes Info */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="glass-strong border-white/5">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Vote Log</CardTitle>
-            <CardDescription>The last 100 votes matching your filters</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border border-white/10 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-white/5 text-left border-b border-white/10">
-                    <th className="p-3 font-medium">Server</th>
-                    <th className="p-3 font-medium">Date</th>
-                    <th className="p-3 font-medium">Challenge</th>
-                    <th className="p-3 font-medium">Location</th>
-                    <th className="p-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {votes.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-muted-foreground">No votes found for this period.</td>
+      {/* Tabs: Vote Log | Geo | Referrers | ISP */}
+      <Tabs defaultValue="log">
+        <TabsList className="glass border border-white/10">
+          <TabsTrigger value="log">Vote Log</TabsTrigger>
+          <TabsTrigger value="geo" className="flex items-center gap-1">
+            <Globe className="h-3.5 w-3.5" /> Geography
+          </TabsTrigger>
+          <TabsTrigger value="referrers" className="flex items-center gap-1">
+            <Share2 className="h-3.5 w-3.5" /> Sources
+          </TabsTrigger>
+          <TabsTrigger value="isp" className="flex items-center gap-1">
+            <Wifi className="h-3.5 w-3.5" /> ISP
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Vote Log */}
+        <TabsContent value="log">
+          <Card className="glass-strong border-white/5">
+            <CardHeader>
+              <CardTitle className="text-lg">Recent Vote Log</CardTitle>
+              <CardDescription>Last 100 votes with full location data</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border border-white/10 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-white/5 text-left border-b border-white/10">
+                      <th className="p-3 font-medium">Server</th>
+                      <th className="p-3 font-medium">Date</th>
+                      <th className="p-3 font-medium">Challenge</th>
+                      <th className="p-3 font-medium">Country</th>
+                      <th className="p-3 font-medium">City / Region</th>
+                      <th className="p-3 font-medium">ISP</th>
+                      <th className="p-3 font-medium">Source</th>
+                      <th className="p-3 font-medium">Status</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {votes.length === 0 ? (
+                      <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No votes found for this period.</td></tr>
+                    ) : (
+                      votes.slice(0, 100).map((v) => (
+                        <tr key={v.id} className="hover:bg-white/5 transition-colors">
+                          <td className="p-3 font-medium">{v.server_name || "—"}</td>
+                          <td className="p-3 text-muted-foreground whitespace-nowrap">{format(new Date(v.voted_at), "MMM dd, HH:mm")}</td>
+                          <td className="p-3">
+                            <span className="text-[10px] uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded text-muted-foreground">
+                              {v.challenge_type_passed || "API"}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            {v.voter_country_code && (
+                              <span className="mr-1">{countryFlag(v.voter_country_code)}</span>
+                            )}
+                            <span className="text-sm">{v.voter_country || "—"}</span>
+                          </td>
+                          <td className="p-3 text-muted-foreground text-xs">
+                            {[v.voter_city, v.voter_region].filter(Boolean).join(", ") || "—"}
+                          </td>
+                          <td className="p-3 text-muted-foreground text-xs max-w-[140px] truncate">{v.voter_isp || "—"}</td>
+                          <td className="p-3 text-muted-foreground text-xs max-w-[120px] truncate">{v.referrer || "Direct"}</td>
+                          <td className="p-3">
+                            {v.is_suspicious ? (
+                              <span className="text-[10px] uppercase tracking-wider bg-red-500/10 text-red-400 px-2 py-0.5 rounded">Suspicious</span>
+                            ) : (
+                              <span className="text-[10px] uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">Verified</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Geography */}
+        <TabsContent value="geo">
+          {fetchingGeo ? (
+            <div className="flex items-center justify-center h-40"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Country table */}
+              <Card className="glass-strong border-white/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-primary" /> Votes by Country
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!geoData?.byCountry?.length ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No geo data yet — votes will be tracked going forward.</p>
                   ) : (
-                    votes.slice(-100).reverse().map((v) => (
-                      <tr key={v.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-3 font-medium">{v.servers?.name}</td>
-                        <td className="p-3 text-muted-foreground">{format(new Date(v.voted_at), "MMM dd, HH:mm")}</td>
-                        <td className="p-3">
-                          <span className="text-[10px] uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded text-muted-foreground">
-                            {v.challenge_type_passed || "API"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-muted-foreground">
-                          {v.voter_country ? `${v.voter_country}${v.voter_city ? `, ${v.voter_city}` : ""}` : "Unknown"}
-                        </td>
-                        <td className="p-3">
-                          {v.is_suspicious ? (
-                            <span className="text-[10px] uppercase tracking-wider bg-red-500/10 text-red-400 px-2 py-0.5 rounded">Suspicious</span>
-                          ) : (
-                            <span className="text-[10px] uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">Verified</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                    <div className="space-y-2">
+                      {geoData.byCountry.map((row: any, i: number) => {
+                        const max = geoData.byCountry[0]?.votes || 1;
+                        return (
+                          <div key={i} className="flex items-center gap-3">
+                            <span className="text-lg w-7 text-center">{countryFlag(row.country_code)}</span>
+                            <div className="flex-1">
+                              <div className="flex justify-between text-sm mb-0.5">
+                                <span>{row.country || "Unknown"}</span>
+                                <span className="font-mono text-muted-foreground">{row.votes}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-primary"
+                                  style={{ width: `${(row.votes / max) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </CardContent>
+              </Card>
+
+              {/* City table */}
+              <Card className="glass-strong border-white/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" /> Top Cities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!geoData?.byCity?.length ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No city data yet.</p>
+                  ) : (
+                    <div className="rounded-md border border-white/10 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-white/5 border-b border-white/10">
+                            <th className="p-2 text-left font-medium">City</th>
+                            <th className="p-2 text-left font-medium">Country</th>
+                            <th className="p-2 text-right font-medium">Votes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {geoData.byCity.map((row: any, i: number) => (
+                            <tr key={i} className="hover:bg-white/5">
+                              <td className="p-2">{row.city}</td>
+                              <td className="p-2 text-muted-foreground">
+                                {countryFlag(row.country_code)} {row.country}
+                              </td>
+                              <td className="p-2 text-right font-mono">{row.votes}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </TabsContent>
+
+        {/* Referrers / Sources */}
+        <TabsContent value="referrers">
+          <Card className="glass-strong border-white/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Share2 className="h-4 w-4 text-primary" /> Vote Sources
+              </CardTitle>
+              <CardDescription>Where your voters came from</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!geoData?.byReferrer?.length ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No referrer data yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {geoData.byReferrer.map((row: any, i: number) => {
+                    const max = geoData.byReferrer[0]?.votes || 1;
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm mb-0.5">
+                            <span className="truncate max-w-xs text-muted-foreground">{row.source}</span>
+                            <span className="font-mono ml-2 flex-shrink-0">{row.votes}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: `${(row.votes / max) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ISP */}
+        <TabsContent value="isp">
+          <Card className="glass-strong border-white/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-primary" /> ISP / Network Breakdown
+              </CardTitle>
+              <CardDescription>Internet service providers your voters use</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!geoData?.byIsp?.length ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No ISP data yet.</p>
+              ) : (
+                <div className="rounded-md border border-white/10 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white/5 border-b border-white/10">
+                        <th className="p-3 text-left font-medium">ISP / Network</th>
+                        <th className="p-3 text-right font-medium">Votes</th>
+                        <th className="p-3 text-right font-medium">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {geoData.byIsp.map((row: any, i: number) => {
+                        const total = geoData.byIsp.reduce((s: number, r: any) => s + r.votes, 0);
+                        return (
+                          <tr key={i} className="hover:bg-white/5">
+                            <td className="p-3">{row.isp}</td>
+                            <td className="p-3 text-right font-mono">{row.votes}</td>
+                            <td className="p-3 text-right text-muted-foreground">
+                              {((row.votes / total) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <div className="glass rounded-xl p-4 flex items-start gap-3 border border-white/5">
         <div className="p-2 rounded-lg bg-primary/10 text-primary">
           <Info className="h-5 w-5" />
         </div>
         <div>
-          <h4 className="font-bold text-sm">Security Analytics</h4>
+          <h4 className="font-bold text-sm">Location Data</h4>
           <p className="text-xs text-muted-foreground mt-0.5">
-            The charts above show all successful votes. Suspicious votes are flagged based on fingerprinting and IP analysis.
-            Votes from the same IP within the cooldown period are automatically blocked and not recorded here.
+            Geolocation is resolved from the voter's IP using ip-api.com and cached. Country, city, region, ISP, and coordinates are recorded per vote. Only new votes (after this update) will have location data.
           </p>
         </div>
       </div>

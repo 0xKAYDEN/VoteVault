@@ -51,10 +51,32 @@ export const initializeSocket = (server) => {
     // Join user's personal room
     socket.join(`user:${userId}`);
 
+    // FIX #17: Per-socket message rate limiting (20 messages/minute)
+    const msgTimestamps = [];
+
     // Handle chat messages
     socket.on('send_message', async (data) => {
       try {
         const { receiverId, message } = data;
+
+        // Rate limit: max 20 messages per minute
+        const now = Date.now();
+        while (msgTimestamps.length && now - msgTimestamps[0] > 60000) msgTimestamps.shift();
+        if (msgTimestamps.length >= 20) {
+          socket.emit('error', { message: 'Sending too fast, slow down.' });
+          return;
+        }
+        msgTimestamps.push(now);
+
+        // FIX #17: Validate message length
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+          socket.emit('error', { message: 'Message cannot be empty' });
+          return;
+        }
+        if (message.length > 2000) {
+          socket.emit('error', { message: 'Message too long (max 2000 characters)' });
+          return;
+        }
 
         // Verify friendship
         const [friendships] = await db.query(
@@ -69,11 +91,28 @@ export const initializeSocket = (server) => {
           return;
         }
 
+        // Check if either user has blocked the other
+        const [blocks] = await db.query(
+          'SELECT id FROM blocked_users WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)',
+          [userId, receiverId, receiverId, userId]
+        );
+        if (blocks.length > 0) {
+          socket.emit('error', { message: 'Cannot send message to this user' });
+          return;
+        }
+
         // Save message to database
         const [result] = await db.query(
           'INSERT INTO chat_messages (sender_id, receiver_id, message) VALUES (?, ?, ?)',
           [userId, receiverId, message]
         );
+
+        // Get sender profile for the message data
+        const [senderProfile] = await db.query(
+          'SELECT username, display_name, avatar_url FROM profiles WHERE id = ?',
+          [userId]
+        );
+        const sender = senderProfile[0] || {};
 
         const messageData = {
           id: result.insertId,
@@ -81,7 +120,11 @@ export const initializeSocket = (server) => {
           receiver_id: receiverId,
           message,
           is_read: false,
-          created_at: new Date()
+          created_at: new Date(),
+          // Include sender info so mini panel can display it
+          username: sender.username,
+          display_name: sender.display_name,
+          avatar_url: sender.avatar_url,
         };
 
         // Send to receiver if online
@@ -127,7 +170,10 @@ export const initializeSocket = (server) => {
           [friendId, userId]
         );
 
-        // Update unread count
+        // Notify the sender that their messages were read
+        io.to(`user:${friendId}`).emit('messages_read', { by: userId });
+
+        // Update unread count for current user
         const [unreadCount] = await db.query(
           'SELECT COUNT(*) as count FROM chat_messages WHERE receiver_id = ? AND is_read = false',
           [userId]

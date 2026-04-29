@@ -1,19 +1,23 @@
 import nodemailer from 'nodemailer';
 import logger from './logger.js';
 
+const SUPPORT_EMAIL = 'votevaultsupport@gmail.com';
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: process.env.EMAIL_SECURE === 'true',
+  host:   process.env.SMTP_HOST  || process.env.EMAIL_HOST,
+  port:   Number(process.env.SMTP_PORT  || process.env.EMAIL_PORT  || 587),
+  secure: (process.env.SMTP_SECURE || process.env.EMAIL_SECURE) === 'true',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SMTP_USER     || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASSWORD || process.env.EMAIL_PASS,
   },
 });
 
 export const sendEmail = async ({ to, subject, html }) => {
-  if (!process.env.EMAIL_USER) {
-    logger.info('EMAIL_USER not set. Mocking email to console.');
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
+
+  if (!user) {
+    logger.info('SMTP_USER not set. Mocking email to console.');
     console.log('--- MOCK EMAIL ---');
     console.log(`To: ${to}`);
     console.log(`Subject: ${subject}`);
@@ -24,7 +28,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 
   try {
     await transporter.sendMail({
-      from: `"VoteVault" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"VoteVault" <${SUPPORT_EMAIL}>`,
       to,
       subject,
       html,

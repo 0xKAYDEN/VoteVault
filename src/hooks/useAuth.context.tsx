@@ -26,7 +26,7 @@ interface AuthContextValue {
   loading: boolean;
   isOwner: boolean;
   isAdmin: boolean;
-  login: (credentials: any) => Promise<void>;
+  login: (credentials: any) => Promise<any>;
   register: (data: any) => Promise<void>;
   signOut: () => void;
   refresh: () => Promise<void>;
@@ -47,17 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check both storage locations for token
+  const getStoredToken = () =>
+    localStorage.getItem("token") || sessionStorage.getItem("token");
+
   const loadUserData = async () => {
     try {
       const prof = await api.auth.getMe();
-      setProfile(prof);
-      setUser({ id: prof.id, email: "" });
-
-      // Initialize socket connection
-      const token = localStorage.getItem("token");
-      if (token) {
-        initializeSocket(token);
-      }
+      setProfile(prof as any);
+      setUser({ id: prof.id, email: (prof as any).email || "" });
+      const token = getStoredToken();
+      if (token) initializeSocket(token);
     } catch (err) {
       signOut();
     } finally {
@@ -66,8 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    if (getStoredToken()) {
       loadUserData();
     } else {
       setLoading(false);
@@ -75,28 +74,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (credentials: any) => {
-    const { token, user: userData } = await api.auth.login(credentials);
-    localStorage.setItem("token", token);
+    const result = await api.auth.login(credentials);
+    const { token, user: userData, requires2FA } = result as any;
+
+    if (requires2FA) return result; // pass through for 2FA handling
+
+    // Remember me → localStorage (persists across browser restarts)
+    // Not remembered → sessionStorage (cleared when browser closes)
+    if (credentials.rememberMe) {
+      localStorage.setItem("token", token);
+      sessionStorage.removeItem("token");
+    } else {
+      sessionStorage.setItem("token", token);
+      localStorage.removeItem("token");
+    }
     setUser(userData);
     await loadUserData();
   };
 
   const register = async (data: any) => {
-    const { token, user: userData } = await api.auth.register(data);
-    localStorage.setItem("token", token);
-    setUser(userData);
-    await loadUserData();
+    const result = await api.auth.register(data);
+    // If email verification is required, don't log the user in
+    if ((result as any).requiresVerification) return;
+    // Legacy path (shouldn't happen now, but safe fallback)
+    const { token, user: userData } = result as any;
+    if (token) {
+      localStorage.setItem("token", token);
+      setUser(userData);
+      await loadUserData();
+    }
   };
 
   const signOut = () => {
     localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setUser(null);
     setProfile(null);
     disconnectSocket();
   };
 
   const refresh = async () => {
-    if (localStorage.getItem("token")) await loadUserData();
+    if (getStoredToken()) await loadUserData();
   };
 
   const roles = profile?.roles || [];

@@ -25,6 +25,10 @@ export interface Server {
   logo_url?: string;
   website_url?: string;
   discord_url?: string;
+  youtube_url?: string;
+  facebook_url?: string;
+  twitter_url?: string;
+  twitch_url?: string;
   version?: string;
   rate?: string;
   region?: string;
@@ -36,7 +40,7 @@ export interface Server {
   vote_count: number;
   rating_avg: number;
   rating_count: number;
-  player_count: number;
+  active_players: number;
   profile_visits: number;
   features?: string;
   events_time?: string;
@@ -131,7 +135,7 @@ export interface ChatMessage {
 export const api = {
   // Authentication
   auth: {
-    login: (credentials: { email: string; password: string; twoFactorToken?: string; recaptchaToken: string }) =>
+    login: (credentials: { email: string; password: string; twoFactorToken?: string; recaptchaToken: string; rememberMe?: boolean }) =>
       apiClient.post<{ token: string; user: User; requires2FA?: boolean }>('/auth/login', credentials),
 
     googleLogin: (idToken: string) =>
@@ -143,7 +147,16 @@ export const api = {
     getMe: () =>
       apiClient.get<User>('/auth/me'),
 
-    updateProfile: (data: { display_name?: string; avatar_url?: string; bio?: string }) =>
+    updateProfile: (data: {
+      display_name?: string;
+      avatar_url?: string;
+      bio?: string;
+      social_discord?: string;
+      social_twitter?: string;
+      social_youtube?: string;
+      social_twitch?: string;
+      social_website?: string;
+    }) =>
       apiClient.put<{ message: string }>('/auth/update-profile', data),
 
     updateEmail: (data: { email: string }) =>
@@ -157,6 +170,9 @@ export const api = {
 
     forgotPassword: (email: string) =>
       apiClient.post<{ message: string }>('/auth/forgot-password', { email }),
+
+    resendVerification: (email: string) =>
+      apiClient.post<{ message: string }>('/auth/resend-verification', { email }),
 
     resetPassword: (token: string, password: string) =>
       apiClient.post<{ message: string }>('/auth/reset-password', { token, password }),
@@ -197,7 +213,7 @@ export const api = {
   // Reviews
   reviews: {
     getByServerId: (serverId: number, page: number = 1) =>
-      apiClient.get<Review[]>(`/reviews/${serverId}?page=${page}`),
+      apiClient.get<{ reviews: Review[]; total: number; page: number; totalPages: number }>(`/reviews/${serverId}?page=${page}`),
 
     submit: (data: { server_id: number; rating: number; comment?: string }) =>
       apiClient.post<{ message: string }>('/reviews', data),
@@ -214,10 +230,10 @@ export const api = {
     checkCooldown: (serverId: number) =>
       apiClient.get<{ cooldownLeft: number | null }>(`/votes/cooldown/${serverId}`),
 
-    submit: (data: { server_id: number; challenge_type_passed: string; voter_fingerprint?: string; tracking_param?: string; recaptchaToken: string }) =>
+    submit: (data: { server_id: number; challenge_type_passed: string; voter_fingerprint?: string; tracking_param?: string; recaptchaToken?: string }) =>
       apiClient.post<{ message: string }>('/votes', data),
 
-    getAnalytics: (params: { server_id?: string; from?: string; to?: string; challenge_type?: string; public?: string; tracking_param?: string }) => {
+    getAnalytics: (params: { server_id?: string | number; from?: string; to?: string; challenge_type?: string; public?: string | boolean; tracking_param?: string }) => {
       const query = new URLSearchParams(params as any).toString();
       return apiClient.get<Vote[]>(`/votes/analytics?${query}`);
     },
@@ -231,18 +247,32 @@ export const api = {
       const query = new URLSearchParams(params as any).toString();
       return apiClient.get<{ votes: Vote[]; summary: any[]; total: number }>(`/votes/tracking/${serverId}/votes${query ? `?${query}` : ''}`);
     },
+
+    getGeoAnalytics: (params: { server_id?: string; from?: string; to?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<{
+        byCountry: Array<{ country: string; country_code: string; votes: number }>;
+        byCity: Array<{ city: string; country: string; country_code: string; votes: number }>;
+        byIsp: Array<{ isp: string; votes: number }>;
+        byReferrer: Array<{ source: string; votes: number }>;
+        points: Array<{ lat: number; lon: number; country: string; city: string; voted_at: string }>;
+      }>(`/votes/geo?${query}`);
+    },
   },
 
   // API Keys
   apiKeys: {
     getAll: () =>
-      apiClient.get<ApiKey[]>('/api-keys'),
+      apiClient.get<{ keys: ApiKey[]; quota: { plan: string; limits: { daily: number | null; perMinute: number }; dailyUsed: number; dailyRemaining: number | null; totalRequests: number; resetAt: string } }>('/api-keys'),
 
     create: (data: { server_id?: number; label?: string }) =>
       apiClient.post<{ key: string; key_prefix: string }>('/api-keys', data),
 
     revoke: (id: number) =>
       apiClient.post<{ message: string }>(`/api-keys/${id}/revoke`),
+
+    getActivity: (year?: number) =>
+      apiClient.get<{ data: Array<{ log_date: string; request_count: number }>; year: number; years: number[] }>(`/api-keys/activity${year ? `?year=${year}` : ''}`),
   },
 
   // Upload
@@ -270,6 +300,29 @@ export const api = {
 
     updateUserRoles: (userId: string, roles: string[]) =>
       apiClient.put<{ message: string }>(`/admin/users/${userId}/roles`, { roles }),
+
+    getReports: (params?: { status?: string; type?: string }) => {
+      const q = new URLSearchParams(params as any).toString();
+      return apiClient.get<any[]>(`/admin/reports${q ? `?${q}` : ''}`);
+    },
+
+    updateReportStatus: (reportId: number, status: string, adminNotes?: string) =>
+      apiClient.put<{ message: string }>(`/admin/reports/${reportId}/status`, { status, adminNotes }),
+
+    banUser: (data: { userId: string; reason: string; banType: string; expiresAt?: string }) =>
+      apiClient.post<{ message: string }>('/admin/users/ban', data),
+
+    unbanUser: (userId: string) =>
+      apiClient.delete<{ message: string }>(`/admin/users/${userId}/ban`),
+
+    suspendUser: (userId: string, reason: string, hours: number) =>
+      apiClient.post<{ message: string; expiresAt: string }>(`/admin/users/${userId}/suspend`, { reason, hours }),
+
+    awardAchievement: (userId: string, achievementId: number) =>
+      apiClient.post<{ message: string }>(`/admin/users/${userId}/achievement`, { achievementId }),
+
+    getAchievements: () =>
+      apiClient.get<any[]>('/admin/achievements'),
   },
 
   // Categories
@@ -443,21 +496,184 @@ export const api = {
       apiClient.get<any>(`/stats/server/${serverId}`),
   },
 
+  // Advanced Analytics
+  analytics: {
+    getRealtime: () =>
+      apiClient.get<any>('/analytics/realtime'),
+
+    getTrends: (params: { server_id?: string; from?: string; to?: string; granularity?: 'day' | 'week' | 'month' }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<any[]>(`/analytics/trends?${query}`);
+    },
+
+    getGeo: (params: { server_id?: string; from?: string; to?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<any>(`/analytics/geo?${query}`);
+    },
+
+    getPeakTimes: (params: { server_id?: string; from?: string; to?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<any>(`/analytics/peak-times?${query}`);
+    },
+
+    getReferrers: (params: { server_id?: string; from?: string; to?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<any>(`/analytics/referrers?${query}`);
+    },
+
+    getDemographics: (params: { server_id?: string; from?: string; to?: string }) => {
+      const query = new URLSearchParams(params as any).toString();
+      return apiClient.get<any>(`/analytics/demographics?${query}`);
+    },
+  },
+
   // User Profiles
   users: {
     getProfile: (userId: string) =>
-      apiClient.get<User>(`/users/${userId}`),
+      apiClient.get<any>(`/users/${userId}`),
 
     getServers: (userId: string) =>
       apiClient.get<Server[]>(`/users/${userId}/servers`),
 
     getReviews: (userId: string) =>
       apiClient.get<Review[]>(`/users/${userId}/reviews`),
+
+    getThreads: (userId: string) =>
+      apiClient.get<any[]>(`/users/${userId}/threads`),
+  },
+
+  // User Experience / Reports
+  userExperience: {
+    submitReport: (data: { reportedType: 'user' | 'server' | 'review'; reportedId: string; reason: string; description?: string }) =>
+      apiClient.post<{ message: string }>('/user-experience/report', data),
+
+    blockUser: (userId: string) =>
+      apiClient.post<{ message: string }>('/user-experience/block', { userId }),
+
+    unblockUser: (userId: string) =>
+      apiClient.delete<{ message: string }>(`/user-experience/block/${userId}`),
+
+    checkBlocked: (targetUserId: string) =>
+      apiClient.get<{ isBlocked: boolean }>(`/user-experience/blocked/check/${targetUserId}`),
+
+    searchUsers: (query: string) =>
+      apiClient.get<Array<{ id: string; username: string; display_name: string; avatar_url: string; discriminator: number; tag: string; roles: string[] }>>(`/user-experience/search?query=${encodeURIComponent(query)}`),
+  },
+
+  // Threads
+  threads: {
+    getCategories: () =>
+      apiClient.get<any[]>('/threads/categories'),
+
+    getAll: (params?: { category?: string; page?: number; search?: string; author?: string }) => {
+      const clean: Record<string, string> = {};
+      if (params?.category) clean.category = params.category;
+      if (params?.page && params.page > 1) clean.page = String(params.page);
+      if (params?.search) clean.search = params.search;
+      if (params?.author) clean.author = params.author;
+      const query = new URLSearchParams(clean).toString();
+      return apiClient.get<any>(`/threads${query ? `?${query}` : ''}`);
+    },
+
+    get: (publicId: string) =>
+      apiClient.get<any>(`/threads/${publicId}`),
+
+    create: (data: { category_id: number; title: string; body: string }) =>
+      apiClient.post<{ public_id: string; message: string }>('/threads', data),
+
+    update: (publicId: string, data: { title?: string; body?: string }) =>
+      apiClient.put<{ message: string }>(`/threads/${publicId}`, data),
+
+    delete: (publicId: string) =>
+      apiClient.delete<{ message: string }>(`/threads/${publicId}`),
+
+    getReplies: (publicId: string, page?: number) =>
+      apiClient.get<any>(`/threads/${publicId}/replies${page ? `?page=${page}` : ''}`),
+
+    createReply: (publicId: string, body: string, parentReplyId?: number) =>
+      apiClient.post<{ public_id: string; message: string }>(`/threads/${publicId}/replies`, { body, parent_reply_id: parentReplyId }),
+
+    deleteReply: (replyId: string) =>
+      apiClient.delete<{ message: string }>(`/threads/replies/${replyId}`),
+
+    react: (targetType: 'thread' | 'reply', targetId: number, reaction: string) =>
+      apiClient.post<{ action: string; reaction: string }>(`/threads/react/${targetType}/${targetId}`, { reaction }),
+
+    pin: (publicId: string, is_pinned: boolean) =>
+      apiClient.put<{ message: string }>(`/threads/${publicId}/pin`, { is_pinned }),
+
+    lock: (publicId: string, is_locked: boolean) =>
+      apiClient.put<{ message: string }>(`/threads/${publicId}/lock`, { is_locked }),
+  },
+
+  // Premium
+  premium: {
+    getStatus: () =>
+      apiClient.get<any>('/premium/status'),
+
+    getThemes: () =>
+      apiClient.get<any[]>('/premium/themes'),
+
+    updateProfile: (data: {
+      banner_url?: string;
+      profile_theme?: string;
+      is_animated_avatar?: boolean;
+      custom_status?: string;
+      custom_status_emoji?: string;
+      bio?: string;
+      display_name?: string;
+      avatar_url?: string;
+    }) =>
+      apiClient.put<{ message: string }>('/premium/profile', data),
+
+    getStreak: () =>
+      apiClient.get<any>('/premium/streak'),
+
+    getXP: (userId?: string) =>
+      userId ? apiClient.get<any>(`/premium/xp/${userId}`) : apiClient.get<any>('/premium/xp'),
+
+    getGroups: () =>
+      apiClient.get<any[]>('/premium/groups'),
+
+    createGroup: (data: { name: string; color?: string }) =>
+      apiClient.post<any>('/premium/groups', data),
+
+    addToGroup: (groupId: number, friendId: string) =>
+      apiClient.post<{ message: string }>(`/premium/groups/${groupId}/members`, { friendId }),
+
+    removeFromGroup: (groupId: number, friendId: string) =>
+      apiClient.delete<{ message: string }>(`/premium/groups/${groupId}/members/${friendId}`),
+
+    deleteGroup: (groupId: number) =>
+      apiClient.delete<{ message: string }>(`/premium/groups/${groupId}`),
+
+    getEmojis: () =>
+      apiClient.get<any[]>('/premium/emojis'),
+
+    addEmoji: (data: { name: string; url: string }) =>
+      apiClient.post<{ message: string }>('/premium/emojis', data),
+
+    deleteEmoji: (emojiId: number) =>
+      apiClient.delete<{ message: string }>(`/premium/emojis/${emojiId}`),
+
+    exportVoteHistory: () =>
+      apiClient.get<any>('/premium/vote-history/export'),
+
+    getVoteHistory: () =>
+      apiClient.get<{ votes: any[]; total: number }>('/premium/vote-history'),
   },
 
   // Batch API - Get multiple resources in one request
   batch: (requests: Array<{ endpoint: string; method: string }>) =>
     apiClient.post<{ results: Array<{ endpoint: string; status: number; data?: any; error?: string }> }>('/batch', { requests }),
+
+  // Public API v1
+  v1: {
+    getMyServerId: () =>
+      apiClient.get<{ data: any }>('/v1/my-server-id'),
+    getServers: () =>
+      apiClient.get<{ data: any[] }>('/v1/servers'),
+  },
 };
 
 // Export types

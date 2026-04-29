@@ -12,8 +12,11 @@ const router = express.Router();
 
 router.get('/', auth, getNotifications);
 router.get('/unread-count', auth, getUnreadCount);
-router.post('/:notificationId/read', auth, markAsRead);
+// Support both PUT (frontend) and POST (legacy) for mark-as-read
+router.put('/read-all', auth, markAllAsRead);
 router.post('/read-all', auth, markAllAsRead);
+router.put('/:notificationId/read', auth, markAsRead);
+router.post('/:notificationId/read', auth, markAsRead);
 router.delete('/:notificationId', auth, deleteNotification);
 
 export default router;

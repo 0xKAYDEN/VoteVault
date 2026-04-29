@@ -73,13 +73,19 @@ export const cache = {
     }
   },
 
-  // Delete multiple keys by pattern
+  // Delete multiple keys by pattern — uses SCAN to avoid blocking Redis
   delPattern: async (pattern) => {
     try {
       if (!redisClient.isOpen) return false;
-      const keys = await redisClient.keys(pattern);
-      if (keys.length > 0) {
-        await redisClient.del(keys);
+      let cursor = 0;
+      const toDelete = [];
+      do {
+        const reply = await redisClient.scan(cursor, { MATCH: pattern, COUNT: 100 });
+        cursor = reply.cursor;
+        toDelete.push(...reply.keys);
+      } while (cursor !== 0);
+      if (toDelete.length > 0) {
+        await redisClient.del(toDelete);
       }
       return true;
     } catch (err) {

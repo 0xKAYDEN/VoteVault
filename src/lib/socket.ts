@@ -5,27 +5,35 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 let socket: Socket | null = null;
 
 export const initializeSocket = (token: string) => {
-  if (socket?.connected) {
-    return socket;
+  // If already connected with the same token, reuse
+  if (socket?.connected) return socket;
+
+  // Disconnect stale socket before creating a new one
+  if (socket) {
+    socket.disconnect();
+    socket = null;
   }
 
   socket = io(API_URL, {
-    auth: {
-      token
-    },
-    autoConnect: true
+    auth: { token },
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 10000,
   });
 
   socket.on('connect', () => {
-    console.log('Socket connected');
+    console.log('[Socket] Connected');
   });
 
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected');
+  socket.on('disconnect', (reason) => {
+    console.log('[Socket] Disconnected:', reason);
+    // socket.io handles reconnection automatically unless we called disconnect()
   });
 
-  socket.on('error', (error) => {
-    console.error('Socket error:', error);
+  socket.on('connect_error', (err) => {
+    console.warn('[Socket] Connection error:', err.message);
   });
 
   return socket;
@@ -40,119 +48,46 @@ export const disconnectSocket = () => {
 
 export const getSocket = () => socket;
 
-// Chat events
+// ── Chat events ───────────────────────────────────────────────────────────────
+
 export const sendMessage = (receiverId: string, message: string) => {
-  if (socket) {
-    socket.emit('send_message', { receiverId, message });
-  }
+  socket?.emit('send_message', { receiverId, message });
 };
 
 export const markMessagesAsRead = (friendId: string) => {
-  if (socket) {
-    socket.emit('mark_read', { friendId });
-  }
+  socket?.emit('mark_read', { friendId });
 };
 
 export const sendTyping = (receiverId: string) => {
-  if (socket) {
-    socket.emit('typing', { receiverId });
-  }
+  socket?.emit('typing', { receiverId });
 };
 
 export const sendStopTyping = (receiverId: string) => {
-  if (socket) {
-    socket.emit('stop_typing', { receiverId });
-  }
+  socket?.emit('stop_typing', { receiverId });
 };
 
 export const notifyFriendRequest = (receiverId: string) => {
-  if (socket) {
-    socket.emit('friend_request_sent', { receiverId });
-  }
+  socket?.emit('friend_request_sent', { receiverId });
 };
 
-// Event listeners
-export const onNewMessage = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('new_message', callback);
-  }
-};
+// ── Event listeners ───────────────────────────────────────────────────────────
 
-export const onMessageSent = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('message_sent', callback);
-  }
-};
+export const onNewMessage       = (cb: (data: any) => void)          => { socket?.on('new_message', cb); };
+export const onMessageSent      = (cb: (data: any) => void)          => { socket?.on('message_sent', cb); };
+export const onUnreadCount      = (cb: (count: number) => void)      => { socket?.on('unread_count', cb); };
+export const onFriendStatusChange = (cb: (data: any) => void)        => { socket?.on('friend_status_change', cb); };
+export const onUserTyping       = (cb: (data: any) => void)          => { socket?.on('user_typing', cb); };
+export const onUserStopTyping   = (cb: (data: any) => void)          => { socket?.on('user_stop_typing', cb); };
+export const onNewFriendRequest = (cb: (data: any) => void)          => { socket?.on('new_friend_request', cb); };
+export const onMessagesRead     = (cb: (data: { by: string }) => void) => { socket?.on('messages_read', cb); };
 
-export const onUnreadCount = (callback: (count: number) => void) => {
-  if (socket) {
-    socket.on('unread_count', callback);
-  }
-};
+// ── Remove listeners ──────────────────────────────────────────────────────────
 
-export const onFriendStatusChange = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('friend_status_change', callback);
-  }
-};
-
-export const onUserTyping = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('user_typing', callback);
-  }
-};
-
-export const onUserStopTyping = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('user_stop_typing', callback);
-  }
-};
-
-export const onNewFriendRequest = (callback: (data: any) => void) => {
-  if (socket) {
-    socket.on('new_friend_request', callback);
-  }
-};
-
-// Remove event listeners
-export const offNewMessage = () => {
-  if (socket) {
-    socket.off('new_message');
-  }
-};
-
-export const offMessageSent = () => {
-  if (socket) {
-    socket.off('message_sent');
-  }
-};
-
-export const offUnreadCount = () => {
-  if (socket) {
-    socket.off('unread_count');
-  }
-};
-
-export const offFriendStatusChange = () => {
-  if (socket) {
-    socket.off('friend_status_change');
-  }
-};
-
-export const offUserTyping = () => {
-  if (socket) {
-    socket.off('user_typing');
-  }
-};
-
-export const offUserStopTyping = () => {
-  if (socket) {
-    socket.off('user_stop_typing');
-  }
-};
-
-export const offNewFriendRequest = () => {
-  if (socket) {
-    socket.off('new_friend_request');
-  }
-};
+export const offNewMessage        = () => { socket?.off('new_message'); };
+export const offMessageSent       = () => { socket?.off('message_sent'); };
+export const offUnreadCount       = () => { socket?.off('unread_count'); };
+export const offFriendStatusChange = () => { socket?.off('friend_status_change'); };
+export const offUserTyping        = () => { socket?.off('user_typing'); };
+export const offUserStopTyping    = () => { socket?.off('user_stop_typing'); };
+export const offNewFriendRequest  = () => { socket?.off('new_friend_request'); };
+export const offMessagesRead      = () => { socket?.off('messages_read'); };

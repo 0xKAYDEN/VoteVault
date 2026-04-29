@@ -8,9 +8,11 @@ export const getServers = async (req, res) => {
   try {
     const { status = 'approved', search, region, version } = req.query;
 
-    let query = `SELECT s.*, u.subscription_plan, u.subscription_expires_at
+    let query = `SELECT s.*, u.subscription_plan, u.subscription_expires_at,
+                        p.username AS owner_username, p.display_name AS owner_display_name, p.id AS owner_id
                  FROM servers s
                  LEFT JOIN users u ON s.owner_id = u.id
+                 LEFT JOIN profiles p ON s.owner_id = p.id
                  WHERE s.status = ?`;
     const params = [status];
 
@@ -29,7 +31,14 @@ export const getServers = async (req, res) => {
       params.push(version);
     }
 
-    query += ' ORDER BY s.vote_count DESC';
+    query += ` ORDER BY
+      CASE
+        WHEN u.subscription_plan IN ('enterprise') AND u.subscription_expires_at > NOW() THEN 3
+        WHEN u.subscription_plan IN ('pro') AND u.subscription_expires_at > NOW() THEN 2
+        WHEN u.subscription_plan IN ('starter','basic') AND u.subscription_expires_at > NOW() THEN 1
+        ELSE 0
+      END DESC,
+      s.vote_count DESC`;
 
     const [rows] = await pool.query(query, params);
     res.json(rows);
@@ -42,7 +51,16 @@ export const getServers = async (req, res) => {
 export const getServerBySlug = async (req, res) => {
   const { slug } = req.params;
   try {
-    const [rows] = await pool.query('SELECT * FROM servers WHERE slug = ?', [slug]);
+    const [rows] = await pool.query(
+      `SELECT s.*,
+              p.username AS owner_username,
+              p.display_name AS owner_display_name,
+              p.avatar_url AS owner_avatar_url
+       FROM servers s
+       LEFT JOIN profiles p ON s.owner_id = p.id
+       WHERE s.slug = ?`,
+      [slug]
+    );
 
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Server not found' });
@@ -93,17 +111,51 @@ export const createServer = async (req, res) => {
   }
 
   try {
+    // ── Server limit per subscription ────────────────────────────────────────
+    const SERVER_LIMITS = { free: 2, starter: 5, pro: 15, enterprise: Infinity };
+
+    const [subRows] = await pool.query(
+      `SELECT plan FROM payments WHERE user_id = ? AND status = 'active' AND expires_at > NOW()
+       ORDER BY expires_at DESC LIMIT 1`,
+      [owner_id]
+    );
+    const rawPlan = subRows[0]?.plan || 'free';
+    const plan = rawPlan.includes('enterprise') ? 'enterprise'
+      : rawPlan.includes('pro') ? 'pro'
+      : rawPlan.includes('starter') ? 'starter'
+      : 'free';
+    const limit = SERVER_LIMITS[plan];
+
+    const [countRows] = await pool.query(
+      'SELECT COUNT(*) AS count FROM servers WHERE owner_id = ?',
+      [owner_id]
+    );
+    const currentCount = countRows[0].count;
+
+    if (currentCount >= limit) {
+      return res.status(403).json({
+        message: `Your ${plan} plan allows a maximum of ${limit} server${limit === 1 ? '' : 's'}. Upgrade your plan to add more.`,
+        limit,
+        current: currentCount,
+        requiresUpgrade: true,
+      });
+    }
+
+    // ── New servers start as 'pending' — admin must approve ──────────────────
     const public_id = uuidv4();
     const [result] = await pool.query(
       `INSERT INTO servers (public_id, owner_id, name, slug, short_description, long_description,
-        logo_url, banner_url, website_url, discord_url, version, rate, region,
-        features, events_time, upcoming_updates)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        logo_url, banner_url, website_url, discord_url, youtube_url, facebook_url, twitter_url, twitch_url,
+        version, rate, region, features, events_time, upcoming_updates, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         public_id, owner_id, name, slug, short_description, long_description,
-        rest.logo_url, rest.banner_url, rest.website_url, rest.discord_url,
-        rest.version, rest.rate, rest.region,
-        rest.features, rest.events_time, rest.upcoming_updates
+        rest.logo_url || null, rest.banner_url || null,
+        rest.website_url || null, rest.discord_url || null,
+        rest.youtube_url || null, rest.facebook_url || null,
+        rest.twitter_url || null, rest.twitch_url || null,
+        rest.version || null, rest.rate || null, rest.region || null,
+        rest.features || null, rest.events_time || null, rest.upcoming_updates || null,
       ]
     );
 
@@ -141,18 +193,32 @@ export const createServer = async (req, res) => {
 export const updateServer = async (req, res) => {
   const { id } = req.params;
   const owner_id = req.user.id;
-  const updates = req.body;
 
   try {
-    const [servers] = await pool.query('SELECT * FROM servers WHERE id = ?', [id]);
+    const [servers] = await pool.query('SELECT owner_id, slug FROM servers WHERE id = ?', [id]);
     if (servers.length === 0) return res.status(404).json({ message: 'Server not found' });
-    
-    // Simple owner check (add admin bypass if needed)
-    if (servers[0].owner_id !== owner_id) {
-      return res.status(403).json({ message: 'Not authorized to update this server' });
-    }
+    if (servers[0].owner_id !== owner_id) return res.status(403).json({ message: 'Not authorized to update this server' });
 
-    await pool.query('UPDATE servers SET ? WHERE id = ?', [updates, id]);
+    // Whitelist allowed fields — prevents arbitrary column injection
+    const ALLOWED = [
+      'name', 'short_description', 'long_description', 'logo_url', 'banner_url',
+      'website_url', 'discord_url', 'youtube_url', 'facebook_url', 'twitter_url', 'twitch_url',
+      'version', 'rate', 'region', 'features', 'events_time', 'upcoming_updates',
+      'is_online', 'active_players',
+    ];
+    const body = req.body;
+    const setClauses = [];
+    const values = [];
+    for (const key of ALLOWED) {
+      if (key in body) {
+        setClauses.push(`${key} = ?`);
+        values.push(body[key] ?? null);
+      }
+    }
+    if (setClauses.length === 0) return res.status(400).json({ message: 'No valid fields to update' });
+    values.push(id);
+
+    await pool.query(`UPDATE servers SET ${setClauses.join(', ')} WHERE id = ?`, values);
 
     // Invalidate caches
     await invalidateCache('cache:/api/servers*');

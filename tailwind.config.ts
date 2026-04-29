@@ -55,8 +55,8 @@ export default {
         "slide-down": { "0%": { transform: "translateY(-12px)", opacity: "0" }, "100%": { transform: "translateY(0)", opacity: "1" } },
         "float-orb": { "0%,100%": { transform: "translate(0,0) scale(1)" }, "50%": { transform: "translate(40px,-30px) scale(1.1)" } },
         "pulse-glow": {
-          "0%,100%": { boxShadow: "0 0 0 0 hsl(0 80% 55% / 0.7)" },
-          "50%": { boxShadow: "0 0 0 12px hsl(0 80% 55% / 0)" },
+          "0%,100%": { boxShadow: "0 0 0 0 hsl(var(--primary) / 0.7)" },
+          "50%":      { boxShadow: "0 0 0 12px hsl(var(--primary) / 0)" },
         },
       },
       animation: {

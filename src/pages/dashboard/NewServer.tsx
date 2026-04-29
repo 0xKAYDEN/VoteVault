@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { api } from "@/lib/api";
@@ -10,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
+import ReCAPTCHA from "react-google-recaptcha";
+
+const RECAPTCHA_V2_SITE_KEY = import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(60),
@@ -28,91 +30,74 @@ const schema = z.object({
   upcoming_updates: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
-const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 
 const NewServer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { executeRecaptcha } = useGoogleReCaptcha();
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [form, setForm] = useState({
     name: "", short_description: "", long_description: "",
-    version: "", rate: "", region: "", website_url: "", discord_url: "", banner_url: "", logo_url: "",
+    version: "", rate: "", region: "",
+    website_url: "", discord_url: "", banner_url: "", logo_url: "",
     features: "", events_time: "", upcoming_updates: "",
+    youtube_url: "", facebook_url: "", twitter_url: "", twitch_url: "",
   });
   const set = (k: keyof typeof form) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await api.categories.getAll();
-        setCategories(data);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
-    })();
+    api.categories.getAll()
+      .then(setCategories)
+      .catch(() => {});
   }, []);
 
-  const toggleCategory = (categoryId: number) => {
+  const toggleCategory = (id: number) =>
     setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
-  };
 
   const submit = async () => {
     if (!user) return;
 
-    if (!executeRecaptcha) {
-      toast.error("reCAPTCHA not loaded yet");
+    if (!recaptchaToken) {
+      toast.error("Please complete the reCAPTCHA verification");
       return;
     }
 
     const parsed = schema.safeParse(form);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+
     setBusy(true);
-
     try {
-      const token = await executeRecaptcha("add_server");
-
       const baseSlug = slugify(form.name);
-      const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
-      const insert = {
+      const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+      const slug = `${baseSlug}-${uniqueSuffix}`;
+
+      const data = await api.servers.create({
+        ...Object.fromEntries(
+          Object.entries(form).map(([k, v]) => [k, v.trim() || null])
+        ),
         name: form.name.trim(),
         slug,
-        short_description: form.short_description.trim(),
-        long_description: form.long_description?.trim() || null,
-        version: form.version?.trim() || null,
-        rate: form.rate?.trim() || null,
-        region: form.region?.trim() || null,
-        website_url: form.website_url?.trim() || null,
-        discord_url: form.discord_url?.trim() || null,
-        banner_url: form.banner_url?.trim() || null,
-        logo_url: form.logo_url?.trim() || null,
-        features: form.features?.trim() || null,
-        events_time: form.events_time?.trim() || null,
-        upcoming_updates: form.upcoming_updates?.trim() || null,
-        recaptchaToken: token,
-      };
+        recaptchaToken,
+      } as any);
 
-      const data = await api.servers.create(insert);
-
-      // Add categories to the server
       if (selectedCategories.length > 0) {
-        await Promise.all(
-          selectedCategories.map(categoryId =>
-            api.categories.addToServer(data.id, categoryId)
-          )
-        );
+        await Promise.all(selectedCategories.map(cid => api.categories.addToServer(data.id, cid)));
       }
 
-      toast.success("Server submitted!");
-      navigate(`/server/${data.slug}`);
+      toast.success("Server submitted! It will be visible once approved by an admin.");
+      navigate("/dashboard/servers");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error?.message || "Failed to submit server");
+      // Reset reCAPTCHA so user can try again
+      recaptchaRef.current?.reset();
+      setRecaptchaToken(null);
     } finally {
       setBusy(false);
     }
@@ -124,7 +109,9 @@ const NewServer = () => {
         <h1 className="font-display text-3xl font-bold">Add Server</h1>
         <p className="text-muted-foreground text-sm">List your Conquer Online private server.</p>
       </div>
+
       <div className="glass-strong rounded-2xl p-6 space-y-4">
+        {/* Basic Info */}
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="Name *" v={form.name} onChange={set("name")} />
           <Field label="Logo URL" v={form.logo_url} onChange={set("logo_url")} placeholder="https://...logo.png" />
@@ -143,63 +130,72 @@ const NewServer = () => {
         <Field label="Discord URL" v={form.discord_url} onChange={set("discord_url")} placeholder="https://discord.gg/..." />
         <Field label="Banner URL" v={form.banner_url} onChange={set("banner_url")} placeholder="https://...image.jpg" />
 
+        {/* Social Media */}
         <div className="space-y-4 pt-4 border-t border-white/5">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Categories</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {categories.map(cat => (
-              <div key={cat.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`cat-${cat.id}`}
-                  checked={selectedCategories.includes(cat.id)}
-                  onCheckedChange={() => toggleCategory(cat.id)}
-                />
-                <label
-                  htmlFor={`cat-${cat.id}`}
-                  className="text-sm cursor-pointer select-none"
-                >
-                  {cat.name}
-                </label>
-              </div>
-            ))}
+          <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Social Media</h3>
+          <div className="grid md:grid-cols-2 gap-3">
+            <Field label="YouTube URL"   v={form.youtube_url}  onChange={set("youtube_url")}  placeholder="https://youtube.com/@channel" />
+            <Field label="Facebook URL"  v={form.facebook_url} onChange={set("facebook_url")} placeholder="https://facebook.com/page" />
+            <Field label="Twitter / X"   v={form.twitter_url}  onChange={set("twitter_url")}  placeholder="https://twitter.com/handle" />
+            <Field label="Twitch URL"    v={form.twitch_url}   onChange={set("twitch_url")}   placeholder="https://twitch.tv/channel" />
           </div>
         </div>
 
+        {/* Categories */}
+        {categories.length > 0 && (
+          <div className="space-y-4 pt-4 border-t border-white/5">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Categories</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {categories.map(cat => (
+                <div key={cat.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`cat-${cat.id}`}
+                    checked={selectedCategories.includes(cat.id)}
+                    onCheckedChange={() => toggleCategory(cat.id)}
+                  />
+                  <label htmlFor={`cat-${cat.id}`} className="text-sm cursor-pointer select-none">
+                    {cat.name}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Additional Details */}
         <div className="space-y-4 pt-4 border-t border-white/5">
           <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Additional Details</h3>
           <div>
             <Label>Server Features</Label>
-            <Textarea 
-              value={form.features} 
-              onChange={set("features")} 
-              rows={3} 
-              className="bg-white/5 border-white/10" 
-              placeholder="List key features (e.g., Level cap, Starting gear, Custom quests)"
-            />
+            <Textarea value={form.features} onChange={set("features")} rows={3} className="bg-white/5 border-white/10"
+              placeholder="List key features (e.g., Level cap, Starting gear, Custom quests)" />
           </div>
           <div>
             <Label>Event's Time</Label>
-            <Textarea 
-              value={form.events_time} 
-              onChange={set("events_time")} 
-              rows={3} 
-              className="bg-white/5 border-white/10" 
-              placeholder="Weekly event schedule or specific event times"
-            />
+            <Textarea value={form.events_time} onChange={set("events_time")} rows={3} className="bg-white/5 border-white/10"
+              placeholder="Weekly event schedule or specific event times" />
           </div>
           <div>
             <Label>Upcoming Updates</Label>
-            <Textarea 
-              value={form.upcoming_updates} 
-              onChange={set("upcoming_updates")} 
-              rows={3} 
-              className="bg-white/5 border-white/10" 
-              placeholder="What's coming next to your server?"
-            />
+            <Textarea value={form.upcoming_updates} onChange={set("upcoming_updates")} rows={3} className="bg-white/5 border-white/10"
+              placeholder="What's coming next to your server?" />
           </div>
         </div>
 
-        <Button variant="hero" onClick={submit} disabled={busy} className="w-full">
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Server"}
+        {/* reCAPTCHA v2 */}
+        <div className="pt-2 flex justify-center">
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={RECAPTCHA_V2_SITE_KEY}
+            onChange={(token) => setRecaptchaToken(token)}
+            onExpired={() => setRecaptchaToken(null)}
+            theme="dark"
+          />
+        </div>
+
+        <Button variant="hero" onClick={submit} disabled={busy || !recaptchaToken} className="w-full">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          {busy ? "Submitting..." : "Submit Server"}
         </Button>
       </div>
     </div>

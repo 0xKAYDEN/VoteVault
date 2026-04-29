@@ -1,16 +1,35 @@
 import pool from '../db.js';
 import logger from '../utils/logger.js';
+import { awardAchievement } from './achievementController.js';
 
 // Servers Management
 export const getAllServers = async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT s.*, p.username as owner_username, p.display_name as owner_display_name
-      FROM servers s
-      JOIN profiles p ON s.owner_id = p.id
-      ORDER BY s.created_at DESC
-    `);
-    res.json(rows);
+    // FIX #22: Add pagination
+    const { page = 1, limit = 50, search, status } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+    const params = [];
+
+    let where = 'WHERE 1=1';
+    if (status) { where += ' AND s.status = ?'; params.push(status); }
+    if (search) { where += ' AND (s.name LIKE ? OR p.username LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+
+    const [rows] = await pool.query(
+      `SELECT s.*, p.username as owner_username, p.display_name as owner_display_name
+       FROM servers s
+       JOIN profiles p ON s.owner_id = p.id
+       ${where}
+       ORDER BY s.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, Number(limit), offset]
+    );
+
+    const [total] = await pool.query(
+      `SELECT COUNT(*) as count FROM servers s JOIN profiles p ON s.owner_id = p.id ${where}`,
+      params
+    );
+
+    res.json({ servers: rows, total: total[0].count, page: Number(page) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error fetching all servers' });
@@ -166,6 +185,56 @@ export const unbanUser = async (req, res) => {
   }
 };
 
+// Suspend user (temporary — sets is_banned without a ban record)
+export const suspendUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason, hours = 24 } = req.body;
+
+    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+
+    // Use MySQL interval so the expiry is always in the DB's own timezone
+    await pool.query(
+      `INSERT INTO user_bans (user_id, admin_id, reason, ban_type, expires_at)
+       VALUES (?, ?, ?, 'temporary', DATE_ADD(NOW(), INTERVAL ? HOUR))
+       ON DUPLICATE KEY UPDATE reason = ?, expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR), ban_type = 'temporary'`,
+      [userId, req.user.id, reason, Number(hours), reason, Number(hours)]
+    );
+    await pool.query('UPDATE users SET is_banned = TRUE WHERE id = ?', [userId]);
+
+    logger.info(`User ${userId} suspended for ${hours}h by admin ${req.user.id}`);
+    res.json({ message: `User suspended for ${hours} hours` });
+  } catch (error) {
+    logger.error('Error suspending user:', error);
+    res.status(500).json({ error: 'Failed to suspend user' });
+  }
+};
+
+// Award achievement to user (admin)
+export const awardAchievementToUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { achievementId } = req.body;
+
+    if (!achievementId) return res.status(400).json({ error: 'achievementId is required' });
+
+    // Verify achievement exists
+    const [ach] = await pool.query('SELECT id, name FROM achievements WHERE id = ?', [achievementId]);
+    if (!ach.length) return res.status(404).json({ error: 'Achievement not found' });
+
+    const awarded = await awardAchievement(userId, achievementId);
+    if (!awarded) {
+      return res.json({ message: 'User already has this achievement', alreadyHad: true });
+    }
+
+    logger.info(`Achievement ${achievementId} (${ach[0].name}) awarded to user ${userId} by admin ${req.user.id}`);
+    res.json({ message: `Achievement "${ach[0].name}" awarded successfully` });
+  } catch (error) {
+    logger.error('Error awarding achievement:', error);
+    res.status(500).json({ error: 'Failed to award achievement' });
+  }
+};
+
 // Get banned users
 export const getBannedUsers = async (req, res) => {
   try {
@@ -187,29 +256,63 @@ export const getBannedUsers = async (req, res) => {
   }
 };
 
-// Get all reports
+// Get all reports — enriched with entity details
 export const getReports = async (req, res) => {
   try {
     const { status = 'pending', type } = req.query;
-
-    let query = `
-      SELECT r.*,
-        p.username as reporter_username,
-        p.display_name as reporter_display_name
-      FROM reports r
-      JOIN profiles p ON r.reporter_id = p.id
-      WHERE r.status = ?
-    `;
     const params = [status];
 
-    if (type) {
-      query += ' AND r.reported_type = ?';
+    let typeFilter = '';
+    if (type && type !== 'all') {
+      typeFilter = ' AND r.reported_type = ?';
       params.push(type);
     }
 
-    query += ' ORDER BY r.created_at DESC LIMIT 100';
+    const [reports] = await pool.query(
+      `SELECT r.*,
+         p.username  AS reporter_username,
+         p.display_name AS reporter_display_name,
+         p.avatar_url   AS reporter_avatar
+       FROM reports r
+       JOIN profiles p ON r.reporter_id = p.id
+       WHERE r.status = ? ${typeFilter}
+       ORDER BY r.created_at DESC
+       LIMIT 200`,
+      params
+    );
 
-    const [reports] = await pool.query(query, params);
+    // Enrich each report with the reported entity's details
+    for (const report of reports) {
+      try {
+        if (report.reported_type === 'server') {
+          const [rows] = await pool.query(
+            'SELECT id, name, slug, logo_url FROM servers WHERE id = ?',
+            [report.reported_id]
+          );
+          report.entity = rows[0] || null;
+        } else if (report.reported_type === 'user') {
+          const [rows] = await pool.query(
+            'SELECT id, username, display_name, avatar_url FROM profiles WHERE id = ?',
+            [report.reported_id]
+          );
+          report.entity = rows[0] || null;
+        } else if (report.reported_type === 'review') {
+          const [rows] = await pool.query(
+            `SELECT r.id, r.comment, r.rating, s.name AS server_name, s.slug AS server_slug
+             FROM reviews r JOIN servers s ON r.server_id = s.id
+             WHERE r.id = ?`,
+            [report.reported_id]
+          );
+          report.entity = rows[0] || null;
+        } else if (report.reported_type === 'thread') {
+          const [rows] = await pool.query(
+            'SELECT id, public_id, title FROM threads WHERE id = ?',
+            [report.reported_id]
+          );
+          report.entity = rows[0] || null;
+        }
+      } catch { report.entity = null; }
+    }
 
     res.json(reports);
   } catch (error) {

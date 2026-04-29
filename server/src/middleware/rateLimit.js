@@ -17,8 +17,16 @@ export const rateLimitRedis = (options = {}) => {
 
   return async (req, res, next) => {
     try {
+      // Skip rate limiting for localhost in development
+      const ip = req.ip || req.connection?.remoteAddress || '';
+      if (process.env.NODE_ENV !== 'production') {
+        if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('::ffff:127.')) {
+          return next();
+        }
+      }
+
       // Create unique key based on IP
-      const identifier = req.ip || req.connection.remoteAddress;
+      const identifier = ip;
       const key = `${keyPrefix}:${identifier}`;
 
       // Get current count

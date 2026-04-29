@@ -70,7 +70,6 @@ export const googleLogin = async (req, res) => {
 
 export const register = async (req, res) => {
   const { email, password, username, display_name, recaptchaToken } = req.body;
-  console.log("📝 Registration attempt:", { email, username });
 
   if (!recaptchaToken) {
     return res.status(400).json({ message: 'reCAPTCHA token is required' });
@@ -102,8 +101,8 @@ export const register = async (req, res) => {
       );
 
       await connection.query(
-        'INSERT INTO profiles (id, public_id, username, display_name) VALUES (?, ?, ?, ?)',
-        [userId, uuidv4(), username || email.split('@')[0], display_name || username || email.split('@')[0]]    
+        'INSERT INTO profiles (id, public_id, username, display_name, discriminator) VALUES (?, ?, ?, ?, ?)',
+        [userId, uuidv4(), username || email.split('@')[0], display_name || username || email.split('@')[0], Math.floor(1000 + Math.random() * 9000)]
       );
 
       await connection.query(
@@ -117,12 +116,25 @@ export const register = async (req, res) => {
       const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/verify-email?token=${verification_token}`;
       await sendEmail({
         to: email,
-        subject: 'Verify your email - VoteVault',
-        html: `<p>Please verify your email by clicking <a href="${verifyUrl}">here</a>.</p>`,
+        subject: 'Verify your VoteVault account',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+            <h2 style="color:#e11d48">Welcome to VoteVault!</h2>
+            <p>Thanks for signing up. Click the button below to verify your email address.</p>
+            <a href="${verifyUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#e11d48;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+              Verify Email
+            </a>
+            <p style="color:#888;font-size:12px">Or copy this link: ${verifyUrl}</p>
+            <p style="color:#888;font-size:12px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
+          </div>
+        `,
       });
 
-      const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      res.status(201).json({ token, user: { id: userId, email } });
+      // Do NOT return a JWT — user must verify email first
+      res.status(201).json({
+        requiresVerification: true,
+        message: 'Account created! Please check your email to verify your account before signing in.',
+      });
     } catch (err) {
       await connection.rollback();
       throw err;
@@ -144,11 +156,45 @@ export const verifyEmail = async (req, res) => {
     }
 
     await pool.query('UPDATE users SET is_verified = TRUE, verification_token = NULL WHERE id = ?', [users[0].id]);
-    res.json({ message: 'Email verified successfully' });
+    res.json({ message: 'Email verified successfully. You can now sign in.' });
   } catch (err) {
     console.error(err);
-  console.log("🔐 Login attempt:", { email });
     res.status(500).json({ message: 'Server error during email verification' });
+  }
+};
+
+export const resendVerification = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+  try {
+    const [users] = await pool.query(
+      'SELECT id, is_verified FROM users WHERE email = ?', [email]
+    );
+    // Always respond the same way to avoid email enumeration
+    if (!users.length || users[0].is_verified) {
+      return res.json({ message: 'If that email exists and is unverified, a new link has been sent.' });
+    }
+    const newToken = crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE users SET verification_token = ? WHERE id = ?', [newToken, users[0].id]);
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/verify-email?token=${newToken}`;
+    await sendEmail({
+      to: email,
+      subject: 'Verify your VoteVault account',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="color:#e11d48">Verify your email</h2>
+          <p>Click the button below to verify your email address.</p>
+          <a href="${verifyUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#e11d48;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+            Verify Email
+          </a>
+          <p style="color:#888;font-size:12px">Or copy this link: ${verifyUrl}</p>
+        </div>
+      `,
+    });
+    res.json({ message: 'If that email exists and is unverified, a new link has been sent.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -166,6 +212,21 @@ export const login = async (req, res) => {
     }
 
     const user = users[0];
+
+    // FIX #1: Block banned users from logging in
+    if (user.is_banned) {
+      return res.status(403).json({ message: 'Your account has been suspended. Contact support.' });
+    }
+
+    // Block unverified users
+    if (!user.is_verified) {
+      return res.status(403).json({
+        message: 'Please verify your email before signing in.',
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -211,7 +272,9 @@ export const login = async (req, res) => {
       }
     }
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: req.body.rememberMe ? '30d' : '7d'
+    });
     res.json({ token, user: { id: user.id, email: user.email, is_verified: user.is_verified } });
   } catch (err) {
     console.error(err);
@@ -228,23 +291,35 @@ export const forgotPassword = async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600000); // 1 hour
+    // Hash before storing — raw token goes in the email link, hash goes in DB
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
 
+    // Use MySQL's DATE_ADD(NOW(), ...) so expiry is always in the DB's own timezone
     await pool.query(
-      'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE email = ?',
-      [resetToken, expires, email]
+      'UPDATE users SET reset_password_token = ?, reset_password_expires = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?',
+      [tokenHash, users[0].id]
     );
 
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
     await sendEmail({
       to: email,
-      subject: 'Password Reset - VoteVault',
-      html: `<p>You requested a password reset. Click <a href="${resetUrl}">here</a> to reset it. Link expires in 1 hour.</p>`,
+      subject: 'Password Reset — VoteVault',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="color:#e11d48">Reset your password</h2>
+          <p>Click the button below to reset your password. This link expires in 24 hours.</p>
+          <a href="${resetUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#e11d48;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+            Reset Password
+          </a>
+          <p style="color:#888;font-size:12px">Or copy this link: ${resetUrl}</p>
+          <p style="color:#888;font-size:12px">If you didn't request this, ignore this email.</p>
+        </div>
+      `,
     });
 
     res.json({ message: 'If that email is in our system, a reset link has been sent.' });
   } catch (err) {
-    console.error(err);
+    logger.error('forgotPassword error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -252,9 +327,12 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   const { token, password } = req.body;
   try {
+    // Hash the incoming token to compare against the stored hash
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
     const [users] = await pool.query(
       'SELECT id FROM users WHERE reset_password_token = ? AND reset_password_expires > NOW()',
-      [token]
+      [tokenHash]
     );
 
     if (users.length === 0) {
@@ -271,14 +349,14 @@ export const resetPassword = async (req, res) => {
 
     res.json({ message: 'Password has been reset successfully' });
   } catch (err) {
-    console.error(err);
+    logger.error('resetPassword error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+// FIX #12: Include email from the users join, not empty string
 export const getMe = async (req, res) => {
   try {
-    // Try cache first
     const cacheKey = `user:profile:${req.user.id}`;
     const cachedProfile = await cache.get(cacheKey);
 
@@ -289,7 +367,8 @@ export const getMe = async (req, res) => {
 
     logger.info(`Cache MISS: ${cacheKey}`);
     const [profiles] = await pool.query(
-      `SELECT p.*, u.email, GROUP_CONCAT(r.role) as roles, u.is_verified, u.google_id
+      `SELECT p.*, u.email, u.is_verified, u.google_id,
+              GROUP_CONCAT(r.role) as roles
        FROM profiles p
        LEFT JOIN user_roles r ON p.id = r.user_id
        JOIN users u ON p.id = u.id
@@ -305,9 +384,7 @@ export const getMe = async (req, res) => {
     const profile = profiles[0];
     profile.roles = profile.roles ? profile.roles.split(',') : [];
 
-    // Cache for 5 minutes
     await cache.set(cacheKey, profile, 300);
-
     res.json(profile);
   } catch (err) {
     logger.error('Error fetching profile:', err);
@@ -316,16 +393,40 @@ export const getMe = async (req, res) => {
 };
 
 export const updateProfile = async (req, res) => {
-  const { display_name, avatar_url, bio } = req.body;
+  const { display_name, avatar_url, bio, social_discord, social_twitter, social_youtube, social_twitch, social_website } = req.body;
   const userId = req.user.id;
 
   try {
-    await pool.query(
-      'UPDATE profiles SET display_name = ?, avatar_url = ?, bio = ? WHERE id = ?',
-      [display_name, avatar_url, bio, userId]
+    // Check premium status for bio limit
+    const [premiumRows] = await pool.query(
+      `SELECT plan FROM payments WHERE user_id = ? AND status = 'active' AND expires_at > NOW() LIMIT 1`,
+      [userId]
     );
+    const isPremium = premiumRows.length > 0;
+    const maxBio = isPremium ? 1000 : 200;
 
-    // Invalidate user profile cache
+    if (bio !== undefined && bio.length > maxBio) {
+      return res.status(400).json({ message: `Bio cannot exceed ${maxBio} characters` });
+    }
+
+    const fields = {};
+    if (display_name !== undefined) fields.display_name = display_name;
+    if (avatar_url !== undefined) fields.avatar_url = avatar_url;
+    if (bio !== undefined) fields.bio = bio;
+    if (social_discord !== undefined) fields.social_discord = social_discord;
+    if (social_twitter !== undefined) fields.social_twitter = social_twitter;
+    if (social_youtube !== undefined) fields.social_youtube = social_youtube;
+    if (social_twitch !== undefined) fields.social_twitch = social_twitch;
+    if (social_website !== undefined) fields.social_website = social_website;
+
+    if (Object.keys(fields).length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    const setClauses = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+    await pool.query(`UPDATE profiles SET ${setClauses} WHERE id = ?`, [...Object.values(fields), userId]);
+
+    // Invalidate cache
     await cache.del(`user:profile:${userId}`);
 
     logger.info(`Profile updated for user ${userId}`);

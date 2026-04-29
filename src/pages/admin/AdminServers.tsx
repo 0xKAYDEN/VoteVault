@@ -21,7 +21,9 @@ const AdminServers = () => {
   const load = async () => {
     try {
       const data = await api.admin.getServers();
-      setServers(Array.isArray(data) ? data : []);
+      // backend returns { servers: [], total, page } or a plain array (fallback)
+      const list = Array.isArray(data) ? data : (data as any)?.servers ?? [];
+      setServers(list);
     } catch (err) {
       console.error("Error loading servers:", err);
       setServers([]);

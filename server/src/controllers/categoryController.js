@@ -173,3 +173,59 @@ export const removeCategoryFromServer = async (req, res) => {
     res.status(500).json({ error: 'Failed to remove category' });
   }
 };
+
+// ─── Admin Category Management ───────────────────────────────────────────────
+
+export const createCategory = async (req, res) => {
+  try {
+    const { name, slug, description, icon, display_order } = req.body;
+    if (!name || !slug) return res.status(400).json({ error: 'Name and slug required' });
+
+    await db.query(
+      'INSERT INTO categories (public_id, name, slug, description, icon, display_order) VALUES (UUID(), ?, ?, ?, ?, ?)',
+      [name, slug, description || null, icon || '🎮', display_order || 0]
+    );
+    await invalidateCache('cache:/api/categories/*');
+    res.status(201).json({ message: 'Category created' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+};
+
+export const updateCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, icon, display_order, is_active } = req.body;
+
+    const fields = {};
+    if (name !== undefined) fields.name = name;
+    if (slug !== undefined) fields.slug = slug;
+    if (description !== undefined) fields.description = description;
+    if (icon !== undefined) fields.icon = icon;
+    if (display_order !== undefined) fields.display_order = display_order;
+    if (is_active !== undefined) fields.is_active = is_active;
+
+    if (Object.keys(fields).length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    const setClauses = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+    await db.query(`UPDATE categories SET ${setClauses} WHERE id = ?`, [...Object.values(fields), id]);
+    await invalidateCache('cache:/api/categories/*');
+    res.json({ message: 'Category updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+};
+
+export const deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM categories WHERE id = ?', [id]);
+    await invalidateCache('cache:/api/categories/*');
+    res.json({ message: 'Category deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+};

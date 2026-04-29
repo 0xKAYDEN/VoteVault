@@ -14,7 +14,8 @@ console.log('Environment check:');
 console.log('- DB_HOST:', process.env.DB_HOST || 'NOT SET');
 console.log('- DB_USER:', process.env.DB_USER || 'NOT SET');
 console.log('- DB_NAME:', process.env.DB_NAME || 'NOT SET');
-console.log('- RECAPTCHA_SECRET_KEY:', process.env.RECAPTCHA_SECRET_KEY ? 'SET' : 'NOT SET');
+// FIX #14: Check the correct env var name
+console.log('- RECAPTCHA_V2_SECRET_KEY:', process.env.RECAPTCHA_V2_SECRET_KEY ? 'SET' : 'NOT SET');
 
 import express from 'express';
 import cors from 'cors';
@@ -47,6 +48,11 @@ import achievementRoutes from './routes/achievementRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import batchRoutes from './routes/batchRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import premiumRoutes from './routes/premiumRoutes.js';
+import threadRoutes from './routes/threadRoutes.js';
+import publicApiRoutes from './routes/publicApiRoutes.js';
+import { startScheduler } from './utils/scheduler.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -114,16 +120,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Rate Limiting - Increased for production load
+// FIX #15: Tighten global rate limit to a sensible value
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // 10k requests per 15 min per IP (handles high traffic)
+  windowMs: 15 * 60 * 1000,
+  max: 500, // 500 requests per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests, please try again later',
   skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health' || req.path === '/api/health';
+    // Skip rate limiting for health checks and localhost in development
+    if (req.path === '/health' || req.path === '/api/health') return true;
+    if (process.env.NODE_ENV !== 'production') {
+      const ip = req.ip || '';
+      if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('::ffff:127.')) return true;
+    }
+    return false;
   }
 });
 app.use('/api/', limiter);
@@ -158,6 +169,10 @@ app.use('/api/server-owner', serverOwnerRoutes);
 app.use('/api/user-preferences', userPreferencesRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/premium', premiumRoutes);
+app.use('/api/threads', threadRoutes);
+app.use('/api/v1', publicApiRoutes);
 app.use('/api', healthRoutes);
 
 // Basic health check (legacy endpoint)
@@ -211,6 +226,7 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`   Time: ${new Date().toISOString()}`);
     logger.info('='.repeat(50));
+    startScheduler();
   });
 
   httpServer.on('error', (error) => {

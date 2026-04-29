@@ -15,6 +15,7 @@ interface VoteDialogProps {
   onOpenChange: (open: boolean) => void;
   serverId: number;
   serverName: string;
+  trackingParam?: string;
   onSuccess: () => void;
 }
 
@@ -35,7 +36,7 @@ function fingerprint(): string {
   return Math.abs(h).toString(36);
 }
 
-export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess }: VoteDialogProps) {
+export function VoteDialog({ open, onOpenChange, serverId, serverName, trackingParam, onSuccess }: VoteDialogProps) {
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge>("math");
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +125,7 @@ export function VoteDialog({ open, onOpenChange, serverId, serverName, onSuccess
         server_id: serverId,
         voter_fingerprint: fp,
         challenge_type_passed: challenge,
+        tracking_param: trackingParam,
       });
       toast.success(`Vote recorded for ${serverName}!`);
       onOpenChange(false);

@@ -34,6 +34,8 @@
     --popover-foreground: 0 0% 100%;
     --primary: 0 78% 55%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 0 78% 67%;
+    --primary-deep: 0 78% 40%;
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 20%;
@@ -74,6 +76,11 @@
     --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 240 8% 16%;
     --sidebar-ring: 0 78% 55%;
+
+    /* Theme-driven dynamic vars (overridden by ThemeContext JS) */
+    --bg-radial-primary: 0 80% 30%;
+    --glass-hover-border: hsl(0 80% 55% / 0.45);
+    --glass-hover-glow:   hsl(0 80% 50% / 0.25);
   }
 }
 
@@ -91,9 +98,9 @@
 
   .dark body, body {
     background:
-      radial-gradient(1000px 600px at 10% -10%, hsl(0 80% 30% / 0.18), transparent 60%),
-      radial-gradient(800px 500px at 90% 10%, hsl(280 60% 25% / 0.15), transparent 60%),
-      radial-gradient(900px 700px at 50% 110%, hsl(15 80% 35% / 0.18), transparent 60%),
+      radial-gradient(1000px 600px at 10% -10%, hsl(var(--bg-radial-primary) / 0.18), transparent 60%),
+      radial-gradient(800px 500px at 90% 10%,  hsl(var(--bg-radial-primary) / 0.10), transparent 60%),
+      radial-gradient(900px 700px at 50% 110%, hsl(var(--bg-radial-primary) / 0.14), transparent 60%),
       hsl(var(--background));
   }
 
@@ -137,8 +144,8 @@
     @apply transition-all duration-300;
   }
   .glass-hover:hover {
-    border-color: hsl(0 80% 55% / 0.45);
-    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.5), 0 0 24px hsl(0 80% 50% / 0.25), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+    border-color: var(--glass-hover-border);
+    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.5), 0 0 24px var(--glass-hover-glow), inset 0 1px 0 hsl(0 0% 100% / 0.08);
     transform: translateY(-2px);
   }
   .text-gradient {
@@ -148,7 +155,7 @@
     color: transparent;
   }
   .text-crimson-gradient {
-    background: linear-gradient(135deg, hsl(0 90% 65%), hsl(0 70% 45%));
+    background: var(--gradient-crimson);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -222,7 +229,7 @@
 }
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 20px var(--color-glow); }
-  50% { box-shadow: 0 0 40px var(--color-glow), 0 0 60px var(--color-glow); }
+  50%       { box-shadow: 0 0 40px var(--color-glow), 0 0 60px var(--color-glow); }
 }
 @keyframes slide-up {
   from { transform: translateY(20px); opacity: 0; }
