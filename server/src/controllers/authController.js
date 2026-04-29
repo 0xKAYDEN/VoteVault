@@ -477,6 +477,8 @@ export const logout = (req, res) => {
   res.clearCookie('auth_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
   res.json({ message: 'Logged out successfully' });
 };
+
+export const updatePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.user.id;
 
