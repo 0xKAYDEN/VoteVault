@@ -87,36 +87,70 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS MUST BE FIRST - before any other middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'http://localhost:3000'
-].filter(Boolean);
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Must be registered before all other middleware so preflight responses
+// are handled correctly.
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl)
-    if (!origin) return callback(null, true);
+const allowedOrigins = new Set(
+  [
+    process.env.FRONTEND_URL,
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ].filter(Boolean)
+);
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn(`CORS blocked: ${origin}`);
-      callback(null, false);
-    }
-  },
+/**
+ * Decide whether an origin is allowed.
+ * Requests with no Origin header (server-to-server, curl, Postman) are always
+ * permitted — they are not subject to the browser Same-Origin Policy.
+ */
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true);          // no-origin → allow
+  if (allowedOrigins.has(origin)) return callback(null, true);
+
+  // Log the blocked origin (origin value is safe to log — it comes from the
+  // request header, not from our config).
+  logger.warn(`CORS blocked origin: ${origin}`);
+
+  // Pass an Error so the cors package returns a 403 with a JSON body instead
+  // of silently omitting the CORS headers (which gives the browser a useless
+  // "Network Error" with no status code).
+  const err = new Error('Origin not allowed by CORS policy');
+  err.status = 403;
+  callback(err);
+}
+
+const corsOptions = {
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours cache for preflight
-  optionsSuccessStatus: 204
-}));
+  maxAge: 86400,           // cache preflight for 24 h
+  optionsSuccessStatus: 204,
+};
 
-// Handle all OPTIONS requests
-app.options('*', cors());
+// Apply CORS to all routes
+app.use(cors(corsOptions));
+
+// Explicit preflight handler — must come after app.use(cors()) so the CORS
+// headers are already set when we send the 204, but before any route handler
+// that might accidentally respond to OPTIONS.
+app.options('*', cors(corsOptions));
+
+// Custom error handler for CORS rejections — converts the Error thrown by
+// corsOrigin() into a consistent JSON 403 response.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err.status === 403 && err.message.includes('CORS')) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'This origin is not permitted to access this API.',
+    });
+  }
+  next(err);
+});
 
 // Logging Middleware
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
