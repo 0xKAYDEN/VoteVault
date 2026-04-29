@@ -294,6 +294,17 @@ if (process.env.NODE_ENV !== 'test') {
       logger.warn('Could not auto-create app_settings table:', e.message);
     }
 
+    // Fix reports table ENUMs to include all valid values
+    try {
+      const pool = (await import('./db.js')).default;
+      await pool.query(`
+        ALTER TABLE reports
+          MODIFY COLUMN reported_type ENUM('user', 'server', 'review', 'thread') NOT NULL,
+          MODIFY COLUMN reason ENUM('spam', 'harassment', 'inappropriate', 'cheating', 'fake', 'vote_manipulation', 'other') NOT NULL
+      `);
+    } catch (e) {
+      // Silently ignore — table may not exist yet or already correct
+    }
     startScheduler();
   });
 

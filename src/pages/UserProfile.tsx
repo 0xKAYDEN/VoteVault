@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";import { Helmet } from "react-helmet-async";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import { PremiumGate } from "@/components/premium/PremiumGate";
 import { VoteStreakDisplay } from "@/components/premium/VoteStreakDisplay";
 import {
   ArrowLeft, Calendar, MessageCircle, UserPlus, UserCheck, UserMinus,
-  Pencil, Save, X, Crown, Flame, Zap, Image, Smile
+  Pencil, Save, X, Crown, Flame, Zap, Image, Smile, Upload, Loader2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePremium } from "@/hooks/usePremium";
