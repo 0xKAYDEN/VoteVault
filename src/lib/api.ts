@@ -168,6 +168,9 @@ export const api = {
     verifyEmail: (token: string) =>
       apiClient.get<{ message: string }>(`/auth/verify-email?token=${token}`),
 
+    logout: () =>
+      apiClient.post<{ message: string }>('/auth/logout'),
+
     forgotPassword: (email: string) =>
       apiClient.post<{ message: string }>('/auth/forgot-password', { email }),
 

@@ -47,75 +47,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check both storage locations for token
-  const getStoredToken = () =>
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
+  /**
+   * Load the current user from the server.
+   * The JWT lives in an HttpOnly cookie — we never touch localStorage.
+   * If the cookie is absent or expired the server returns 401 and we sign out.
+   */
   const loadUserData = async () => {
     try {
       const prof = await api.auth.getMe();
       setProfile(prof as any);
       setUser({ id: prof.id, email: (prof as any).email || "" });
-      const token = getStoredToken();
-      if (token) initializeSocket(token);
-    } catch (err) {
-      signOut();
+      // Socket needs the token — fetch it from the cookie via a dedicated
+      // endpoint, or pass the user id. For now we re-use the profile id as
+      // the socket identity (the server validates via cookie on upgrade).
+      initializeSocket('cookie'); // signal: use cookie auth on WS handshake
+    } catch {
+      // 401 → not authenticated; clear local state
+      setUser(null);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (getStoredToken()) {
-      loadUserData();
-    } else {
-      setLoading(false);
-    }
-  }, []);
+  // On mount, try to restore session from the HttpOnly cookie
+  useEffect(() => { loadUserData(); }, []);
 
   const login = async (credentials: any) => {
     const result = await api.auth.login(credentials);
-    const { token, user: userData, requires2FA } = result as any;
+    const { user: userData, requires2FA } = result as any;
 
-    if (requires2FA) return result; // pass through for 2FA handling
+    if (requires2FA) return result;
 
-    // Remember me → localStorage (persists across browser restarts)
-    // Not remembered → sessionStorage (cleared when browser closes)
-    if (credentials.rememberMe) {
-      localStorage.setItem("token", token);
-      sessionStorage.removeItem("token");
-    } else {
-      sessionStorage.setItem("token", token);
-      localStorage.removeItem("token");
-    }
+    // Cookie is set by the server — nothing to store in JS
     setUser(userData);
     await loadUserData();
   };
 
   const register = async (data: any) => {
     const result = await api.auth.register(data);
-    // If email verification is required, don't log the user in
     if ((result as any).requiresVerification) return;
-    // Legacy path (shouldn't happen now, but safe fallback)
-    const { token, user: userData } = result as any;
-    if (token) {
-      localStorage.setItem("token", token);
-      setUser(userData);
-      await loadUserData();
-    }
+    // Legacy path — shouldn't happen now
+    const { user: userData } = result as any;
+    if (userData) { setUser(userData); await loadUserData(); }
   };
 
-  const signOut = () => {
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
+  const signOut = async () => {
+    try { await api.auth.logout(); } catch { /* ignore */ }
     setUser(null);
     setProfile(null);
     disconnectSocket();
   };
 
-  const refresh = async () => {
-    if (getStoredToken()) await loadUserData();
-  };
+  const refresh = async () => { await loadUserData(); };
 
   const roles = profile?.roles || [];
 

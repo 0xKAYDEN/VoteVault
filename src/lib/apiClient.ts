@@ -1,9 +1,9 @@
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  TIMEOUT: 30000, // 30 seconds
+  TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
-  RETRY_DELAY: 1000, // 1 second
+  RETRY_DELAY: 1000,
 } as const;
 
 // API Error class
@@ -34,26 +34,20 @@ export interface ApiResponse<T = any> {
   headers: Headers;
 }
 
-// Token management
-class TokenManager {
-  private static TOKEN_KEY = 'token';
-
-  static getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY) || sessionStorage.getItem(this.TOKEN_KEY);
-  }
-
-  static setToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
-  }
-
-  static removeToken(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    sessionStorage.removeItem(this.TOKEN_KEY);
-  }
-
-  static hasToken(): boolean {
-    return !!this.getToken();
-  }
+/**
+ * TokenManager — kept as a no-op shim so any remaining call sites compile.
+ * The JWT now lives exclusively in an HttpOnly cookie set by the server;
+ * JS never reads or writes it.
+ */
+export class TokenManager {
+  /** @deprecated Token is now in an HttpOnly cookie — JS cannot access it. */
+  static getToken(): null { return null; }
+  /** @deprecated No-op. Token is set by the server via Set-Cookie. */
+  static setToken(_token: string): void {}
+  /** @deprecated Call POST /auth/logout instead to clear the cookie server-side. */
+  static removeToken(): void {}
+  /** @deprecated Always returns true if the cookie exists — but JS cannot check. */
+  static hasToken(): boolean { return false; }
 }
 
 // Request interceptors
@@ -114,19 +108,8 @@ class ApiClient {
   }
 
   private setupDefaultInterceptors(): void {
-    // Add auth token to requests
-    this.interceptors.addRequestInterceptor((config) => {
-      if (!config.skipAuth) {
-        const token = TokenManager.getToken();
-        if (token) {
-          config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${token}`,
-          };
-        }
-      }
-      return config;
-    });
+    // credentials: 'include' is set on every request (see fetchWithRetry) so
+    // the HttpOnly auth_token cookie is sent automatically. No JS token needed.
 
     // Log requests in development
     if (import.meta.env.DEV) {
@@ -141,11 +124,9 @@ class ApiClient {
       });
     }
 
-    // Handle 401 errors (unauthorized)
+    // Handle 401 — cookie expired or missing; redirect to login
     this.interceptors.addErrorInterceptor(async (error) => {
       if (error.status === 401) {
-        TokenManager.removeToken();
-        // Only redirect if not already on auth page and not in dashboard (dashboard has its own guard)
         const path = window.location.pathname;
         if (path !== '/auth' && !path.startsWith('/dashboard') && !path.startsWith('/admin')) {
           window.location.href = '/auth';
@@ -229,9 +210,9 @@ class ApiClient {
     endpoint: string,
     config: ApiRequestConfig = {}
   ): Promise<T> {
-    // Prepare config
     let requestConfig: ApiRequestConfig = {
       method: 'GET',
+      credentials: 'include',   // always send the HttpOnly auth cookie
       headers: {
         'Content-Type': 'application/json',
       },
@@ -336,9 +317,7 @@ class ApiClient {
   // Download file
   async download(endpoint: string, filename?: string): Promise<void> {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${TokenManager.getToken()}`,
-      },
+      credentials: 'include',   // send auth cookie
     });
 
     if (!response.ok) {
@@ -359,6 +338,3 @@ class ApiClient {
 
 // Create singleton instance
 export const apiClient = new ApiClient();
-
-// Export token manager
-export { TokenManager };

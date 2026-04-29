@@ -61,7 +61,14 @@ export const googleLogin = async (req, res) => {
     }
 
     const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: userId, email } });
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    };
+    res.cookie('auth_token', token, cookieOptions);
+    res.json({ user: { id: userId, email } });
   } catch (err) {
     console.error('Google Auth Error:', err);
     res.status(400).json({ message: 'Google authentication failed' });
@@ -275,7 +282,18 @@ export const login = async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: req.body.rememberMe ? '30d' : '7d'
     });
-    res.json({ token, user: { id: user.id, email: user.email, is_verified: user.is_verified } });
+
+    // Set HttpOnly cookie — JS cannot read this, eliminating XSS token theft
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
+      sameSite: 'strict',
+      path: '/',
+      ...(req.body.rememberMe ? { maxAge: 30 * 24 * 60 * 60 * 1000 } : {}), // session vs persistent
+    };
+    res.cookie('auth_token', token, cookieOptions);
+
+    res.json({ user: { id: user.id, email: user.email, is_verified: user.is_verified } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error during login' });
@@ -455,7 +473,10 @@ export const updateEmail = async (req, res) => {
   }
 };
 
-export const updatePassword = async (req, res) => {
+export const logout = (req, res) => {
+  res.clearCookie('auth_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/' });
+  res.json({ message: 'Logged out successfully' });
+};
   const { currentPassword, newPassword } = req.body;
   const userId = req.user.id;
 

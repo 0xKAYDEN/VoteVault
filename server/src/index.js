@@ -30,6 +30,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import logger from './utils/logger.js';
 import { trackVisit } from './middleware/statsMiddleware.js';
@@ -182,6 +183,9 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 app.use(express.json());
+
+// Parse cookies — required for HttpOnly auth_token cookie
+app.use(cookieParser());
 
 // Global stats tracking
 app.use(trackVisit);

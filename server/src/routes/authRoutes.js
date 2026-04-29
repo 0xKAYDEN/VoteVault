@@ -2,7 +2,7 @@ import express from 'express';
 import {
   register, login, getMe, updateProfile,
   verifyEmail, resendVerification, forgotPassword, resetPassword,
-  updateEmail, updatePassword, googleLogin
+  updateEmail, updatePassword, googleLogin, logout
 } from '../controllers/authController.js';
 import auth from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
@@ -17,6 +17,7 @@ const passwordLimiter = rateLimitRedis({ windowMs: 60 * 60 * 1000, max: 5,  keyP
 
 router.post('/register', authLimiter, validate(registerSchema), verifyRecaptcha, register);
 router.post('/login', authLimiter, validate(loginSchema), verifyRecaptcha, login);
+router.post('/logout', logout);
 router.post('/google-login', authLimiter, googleLogin);
 router.get('/me', auth, getMe);
 router.put('/update-profile', auth, updateProfile);

@@ -19,18 +19,25 @@ export const initializeSocket = (server) => {
     }
   });
 
-  // Authentication middleware
+  // Authentication middleware — read JWT from HttpOnly cookie on WS upgrade
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      // cookie-parser is not available in socket.io context; parse manually
+      const cookieHeader = socket.handshake.headers.cookie || '';
+      const cookies = Object.fromEntries(
+        cookieHeader.split(';').map(c => {
+          const [k, ...v] = c.trim().split('=');
+          return [k, decodeURIComponent(v.join('='))];
+        })
+      );
+      const token = cookies['auth_token']
+        // Fallback: legacy Bearer token in handshake auth (non-browser clients)
+        || socket.handshake.auth?.token;
 
-      if (!token) {
-        return next(new Error('Authentication error'));
-      }
+      if (!token) return next(new Error('Authentication error'));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
-
       next();
     } catch (error) {
       logger.error('Socket authentication error:', error);

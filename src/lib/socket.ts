@@ -4,18 +4,14 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 let socket: Socket | null = null;
 
-export const initializeSocket = (token: string) => {
-  // If already connected with the same token, reuse
+export const initializeSocket = (_tokenOrSignal?: string) => {
   if (socket?.connected) return socket;
-
-  // Disconnect stale socket before creating a new one
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+  if (socket) { socket.disconnect(); socket = null; }
 
   socket = io(API_URL, {
-    auth: { token },
+    // The HttpOnly auth_token cookie is sent automatically on the WS upgrade
+    // request when withCredentials is true — no token in JS needed.
+    withCredentials: true,
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
