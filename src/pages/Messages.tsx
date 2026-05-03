@@ -19,8 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Send, Smile, Search, Circle, ArrowLeft, CheckCheck, Check,
-  UserMinus, Ban, UserPlus, MoreVertical, Trash2, X, Users,
+  UserMinus, Ban, UserPlus, MoreVertical, Trash2, X, Users, MessageSquarePlus, Plus,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -45,7 +48,13 @@ const Messages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [msgRequests, setMsgRequests] = useState<any[]>([]);
   const [blocked, setBlocked] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [activeFriend, setActiveFriend] = useState<any>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -73,21 +82,22 @@ const Messages = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [convs, frds, reqs, blk] = await Promise.all([
+      const [convs, frds, reqs, msgReqs, grps] = await Promise.all([
         api.chat.getRecent(),
         api.friends.getList(),
         api.friends.getRequests(),
-        api.userExperience.checkBlocked("_list").catch(() => ({ isBlocked: false })),
+        api.messageRequests.getAll(),
+        api.groups.getAll(),
       ]);
       setConversations(convs as any);
       setFriends(frds as any);
       setRequests(reqs as any);
+      setMsgRequests(msgReqs as any);
+      setGroups(grps as any);
     } catch {}
     // Load blocked separately
     try {
-      const r = await fetch("/api/user-experience/blocked", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token") || sessionStorage.getItem("token")}` },
-      });
+      const r = await fetch("/api/user-experience/blocked", { credentials: "include" });
       if (r.ok) setBlocked(await r.json());
     } catch {}
   }, []);
@@ -179,6 +189,34 @@ const Messages = () => {
     try { await api.friends.rejectRequest(reqId); loadData(); }
     catch {}
   };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) { toast.error("Enter a group name"); return; }
+    setCreatingGroup(true);
+    try {
+      await api.groups.create({ name: groupName.trim(), memberIds: groupMembers });
+      toast.success("Group created!");
+      setCreateGroupOpen(false);
+      setGroupName("");
+      setGroupMembers([]);
+      loadData();
+    } catch (e: any) { toast.error(e.message || "Failed to create group"); }
+    finally { setCreatingGroup(false); }
+  };
+
+  // Message request handlers
+  const acceptMsgRequest = async (reqId: number, senderId: string) => {
+    try {
+      await api.messageRequests.accept(reqId);
+      toast.success("Message request accepted — you can now chat!");
+      loadData();
+      openConversation(senderId);
+    } catch (e: any) { toast.error(e.message || "Failed to accept"); }
+  };
+  const declineMsgRequest = async (reqId: number) => {
+    try { await api.messageRequests.decline(reqId); toast.success("Request declined"); loadData(); }
+    catch (e: any) { toast.error(e.message || "Failed to decline"); }
+  };
   const removeFriend = async (fId: string, name: string) => {
     if (!confirm(`Remove ${name} from friends?`)) return;
     try { await api.friends.remove(fId); toast.success("Friend removed"); loadData(); if (friendId === fId) navigate("/messages"); }
@@ -221,10 +259,7 @@ const Messages = () => {
   const deleteConversation = async (fId: string) => {
     if (!confirm("Delete this conversation? Messages will be removed for you.")) return;
     try {
-      await fetch(`/api/chat/conversation/${fId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token") || sessionStorage.getItem("token")}` },
-      });
+      await fetch(`/api/chat/conversation/${fId}`, { method: "DELETE", credentials: "include" });
       toast.success("Conversation deleted");
       loadData();
       if (friendId === fId) { setMessages([]); navigate("/messages"); }
@@ -253,7 +288,12 @@ const Messages = () => {
       {/* ── Left sidebar ── */}
       <div className={cn("w-full md:w-80 flex-shrink-0 border-r border-white/10 flex flex-col glass-strong", friendId && "hidden md:flex")}>
         <div className="p-4 border-b border-white/10">
-          <h1 className="font-display text-xl font-bold mb-3">Messages</h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="font-display text-xl font-bold">Messages</h1>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setCreateGroupOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />Group
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="pl-9 bg-white/5 border-white/10 h-9 text-sm" />
@@ -261,7 +301,7 @@ const Messages = () => {
         </div>
 
         <Tabs value={sideTab} onValueChange={setSideTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="mx-3 mt-2 mb-1 grid grid-cols-4 bg-white/5 h-8 flex-shrink-0">
+          <TabsList className="mx-3 mt-2 mb-1 grid grid-cols-5 bg-white/5 h-8 flex-shrink-0">
             <TabsTrigger value="chats" className="text-xs">
               Chats
               {conversations.filter((c: any) => c.unread_count > 0).length > 0 && (
@@ -272,6 +312,10 @@ const Messages = () => {
             <TabsTrigger value="requests" className="text-xs">
               Requests
               {requests.length > 0 && <Badge className="ml-1 h-4 px-1 bg-primary text-[10px]">{requests.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="msg-requests" className="text-xs">
+              Msgs
+              {msgRequests.length > 0 && <Badge className="ml-1 h-4 px-1 bg-yellow-500 text-[10px]">{msgRequests.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="find" className="text-xs">Find</TabsTrigger>
           </TabsList>
@@ -328,6 +372,39 @@ const Messages = () => {
                   </DropdownMenu>
                 </div>
               ))}
+              {/* Group chats section */}
+              {groups.length > 0 && (
+                <>
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                      <Users className="h-3 w-3" /> Groups ({groups.length})
+                    </p>
+                  </div>
+                  {groups.map((g: any) => (
+                    <div key={g.id} className="flex items-center gap-2 px-2 py-1 border-b border-white/5">
+                      <button
+                        onClick={() => navigate(`/messages/group/${g.id}`, { replace: true })}
+                        className="flex items-center gap-3 flex-1 p-2 hover:bg-white/5 rounded-lg transition-colors min-w-0"
+                      >
+                        <div className="h-11 w-11 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30">
+                          <Users className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-sm font-medium truncate">{g.name}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1 flex-shrink-0">
+                              {g.last_message_at ? fmtTime(g.last_message_at) : ""}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {g.last_message || `${g.member_count} members`}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
             </ScrollArea>
           </TabsContent>
 
@@ -429,6 +506,46 @@ const Messages = () => {
             </ScrollArea>
           </TabsContent>
 
+          {/* Message Requests tab */}
+          <TabsContent value="msg-requests" className="flex-1 overflow-hidden m-0 p-0">
+            <ScrollArea className="h-full">
+              {msgRequests.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  <MessageSquarePlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  No message requests
+                </div>
+              ) : msgRequests.map((req: any) => (
+                <div key={req.id} className="p-3 border-b border-white/5 hover:bg-white/5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Link to={`/user/${req.sender_id}`} className="flex-shrink-0">
+                      <Avatar className="h-10 w-10 border border-white/10">
+                        <AvatarImage src={req.avatar_url} />
+                        <AvatarFallback className="bg-primary/20 text-primary">{(req.display_name || req.username || "?")[0]}</AvatarFallback>
+                      </Avatar>
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <Link to={`/user/${req.sender_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
+                        {req.display_name || req.username}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground bg-white/5 rounded-lg p-2 mb-2 italic">"{req.message}"</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 h-7 text-xs bg-primary hover:bg-primary/90"
+                      onClick={() => acceptMsgRequest(req.id, req.sender_id)}>
+                      Accept
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10"
+                      onClick={() => declineMsgRequest(req.id)}>
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </ScrollArea>
+          </TabsContent>
+
           {/* Find People tab */}
           <TabsContent value="find" className="flex-1 overflow-hidden m-0 p-0 flex flex-col">
             <div className="p-3 border-b border-white/10 flex-shrink-0">
@@ -492,6 +609,76 @@ const Messages = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Create Group Dialog ── */}
+      <Dialog open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
+        <DialogContent className="glass-strong border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" /> Create Group Chat
+            </DialogTitle>
+            <DialogDescription>
+              Create a group with your friends. You can add more members later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Group Name</label>
+              <Input
+                placeholder="e.g. Game Night Squad"
+                value={groupName}
+                onChange={e => setGroupName(e.target.value.slice(0, 100))}
+                className="bg-white/5 border-white/10"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">
+                Add Friends <span className="text-muted-foreground font-normal">({groupMembers.length} selected)</span>
+              </label>
+              <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg border border-white/10 p-2">
+                {friends.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">No friends to add</p>
+                ) : friends.map((f: any) => {
+                  const selected = groupMembers.includes(f.friend_id);
+                  return (
+                    <button
+                      key={f.friend_id}
+                      onClick={() => setGroupMembers(prev =>
+                        selected ? prev.filter(id => id !== f.friend_id) : [...prev, f.friend_id]
+                      )}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors",
+                        selected ? "bg-primary/15 border border-primary/30" : "hover:bg-white/5"
+                      )}
+                    >
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarImage src={f.avatar_url} />
+                        <AvatarFallback className="text-xs bg-primary/20 text-primary">
+                          {(f.display_name || f.username || "?")[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm flex-1 truncate">{f.display_name || f.username}</span>
+                      {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="hero"
+                className="flex-1"
+                disabled={creatingGroup || !groupName.trim()}
+                onClick={handleCreateGroup}
+              >
+                {creatingGroup ? "Creating…" : "Create Group"}
+              </Button>
+              <Button variant="outline" onClick={() => setCreateGroupOpen(false)}>Cancel</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Chat area ── */}
       {friendId && activeFriend ? (

@@ -47,6 +47,14 @@ export const initializeSocket = (server) => {
 
   io.on('connection', async (socket) => {
     const userId = socket.userId;
+
+    // Guard: reject connections that slipped through without a valid userId
+    if (!userId) {
+      logger.warn('Socket connection without userId — disconnecting');
+      socket.disconnect(true);
+      return;
+    }
+
     logger.info(`User connected: ${userId}`);
 
     // Set user online
@@ -215,6 +223,7 @@ export const initializeSocket = (server) => {
 
 // Helper function to set user online status
 async function setUserOnline(userId, isOnline) {
+  if (!userId) return; // Guard against null/undefined userId
   try {
     await db.query(
       `INSERT INTO user_online_status (user_id, is_online, last_seen)
@@ -229,6 +238,7 @@ async function setUserOnline(userId, isOnline) {
 
 // Helper function to notify friends of status change
 async function notifyFriendsStatus(userId, isOnline) {
+  if (!userId) return; // Guard against null/undefined userId
   try {
     // Get all friends
     const [friends] = await db.query(

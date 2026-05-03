@@ -1,215 +1,612 @@
-# Typography & Motion System
+# Typography & Motion Reference
+
+This file covers typography scales, font pairing, kinetic typography, micro-interactions, scroll/parallax, and animation timing.
 
 ## Table of Contents
-1. Typography Architecture
-2. Font Pairing & Selection
-3. Kinetic & Animated Typography
-4. Micro-Interactions
-5. Scroll & Parallax Effects
-6. Animation Timing & Easing
+
+1. [Typography Scale](#typography-scale)
+2. [Font Pairing](#font-pairing)
+3. [Futuristic Typography](#futuristic-typography)
+4. [Kinetic Typography](#kinetic-typography)
+5. [Micro-interactions](#micro-interactions)
+6. [Scroll & Parallax](#scroll--parallax)
+7. [Animation Timing](#animation-timing)
+8. [Generative Typography](#generative-typography)
 
 ---
 
-## 1. Typography Architecture
+## 1. Typography Scale
 
-### Type Scale (Major Third - 1.25)
-| Token | Desktop | Mobile | Weight | Line-Height | Letter-Spacing |
-|-------|---------|--------|--------|-------------|----------------|
-| Display | 72-96px | 40-48px | 700-900 | 1.0-1.1 | -0.02em |
-| H1 | 48-60px | 32-40px | 700-800 | 1.1-1.2 | -0.01em |
-| H2 | 36-48px | 28-32px | 600-700 | 1.2 | -0.01em |
-| H3 | 24-30px | 20-24px | 600 | 1.3 | 0 |
-| H4 | 20-24px | 18-20px | 600 | 1.4 | 0 |
-| Body | 16px | 16px | 400-500 | 1.6-1.7 | 0 |
-| Small | 14px | 14px | 400 | 1.5 | 0.01em |
-| Caption | 12px | 12px | 400-500 | 1.4 | 0.02em |
+### 4px Base Scale
 
-### Modern Scale (Perfect Fourth - 1.333)
-| Token | Desktop | Weight | Use |
-|-------|---------|--------|-----|
-| Display | 80-120px | 800 | Hero statement |
-| H1 | 60px | 700 | Page title |
-| H2 | 45px | 600 | Section header |
-| H3 | 34px | 600 | Feature title |
-| H4 | 24px | 600 | Card title |
-| Body | 16-18px | 400 | Reading text |
+| Token | Size | Line Height | Usage |
+|-------|------|-------------|-------|
+| xs | 12px | 1.4 | Captions, labels |
+| sm | 14px | 1.5 | Secondary text |
+| base | 16px | 1.6 | Body text |
+| lg | 18px | 1.5 | Lead text |
+| xl | 20px | 1.4 | Subheadings |
+| 2xl | 24px | 1.3 | Headings 3 |
+| 3xl | 30px | 1.2 | Headings 2 |
+| 4xl | 36px | 1.1 | Headings 1 |
+| 5xl | 48px | 1.0 | Hero |
+| 6xl | 60px | 1.0 | Display |
+| 7xl | 72px | 1.0 | Jumbo |
 
-### Display Type Principles
-- **Tight leading**: 0.9-1.1 for display text creates impact
-- **Negative tracking**: -0.02em to -0.04em on large text reduces perceived gaps
-- **Uppercase sparingly**: Use for labels, badges, navigation; never for body
-- **Fluid sizing**: `clamp(min, preferred, max)` for seamless scaling
+### Fluid Type Scale
 
----
+```css
+:root {
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+  --text-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.25rem);
+  --text-4xl: clamp(2.25rem, 2rem + 1.5vw, 3rem);
+}
+```
 
-## 2. Font Pairing & Selection
+### Tracking (Letter Spacing)
 
-### Premium SaaS Pairing
-- **Headings**: Inter, SF Pro Display, Manrope, or Geist (clean, geometric)
-- **Body**: Inter, SF Pro Text, or Manrope (same family, different weights)
-- **Mono**: JetBrains Mono or SF Mono for code/data
-
-### Editorial / Luxury Pairing
-- **Headings**: Playfair Display, Cormorant Garamond, or Editorial New (serif, high contrast)
-- **Body**: Source Sans Pro, Inter, or Suisse Int'l (sans, neutral)
-- **Accent**: Same serif italic for pull quotes
-
-### Tech / Futuristic Pairing
-- **Headings**: Space Grotesk, Syne, or Rajdhani (engineered, wide)
-- **Body**: Inter or Roboto (neutral, readable)
-- **Data**: JetBrains Mono
-
-### Friendly / Creative Pairing
-- **Headings**: Poppins, Nunito, or Fredoka (rounded, approachable)
-- **Body**: Open Sans, Nunito Sans (humanist)
-- **Accent**: Handwritten script for occasional flair
-
-### Variable Fonts
-- Use weight axis for responsive font-weight (wght 400-700)
-- Use width axis for condensed headers in tight spaces
-- Animate font-variation-settings for "breathing" text effects
-
-### Web Font Loading
-- Use `font-display: swap` to prevent invisible text
-- Subset fonts to required character sets
-- Preload critical font weights (headings weight)
+| Token | Value | Usage |
+|-------|-------|-------|
+| tighter | -0.05em | Display/hero |
+| tight | -0.025em | Headings |
+| normal | 0 | Body |
+| wide | 0.025em | Caps labels |
+| wider | 0.05em | All caps |
 
 ---
 
-## 3. Kinetic & Animated Typography
+## 2. Font Pairing
 
-### Entrance Animations
-- **Fade + Rise**: `opacity 0->1, translateY(30px->0)`, duration 600ms, ease-out
-- **Stagger children**: Each line/word delays by 80-120ms
-- **Clip reveal**: Text revealed by expanding clip-path or sliding mask
-- **Typewriter**: Character-by-character reveal for code/tech feel
-- **Blur in**: `filter: blur(8px)` to `blur(0)` for ethereal entrances
+### Premium Pairs
 
-### Scroll Typography
-- **Text scale on scroll**: Heading grows/shrinks with scroll position
-- **Color shift**: Text changes color as it crosses viewport center
-- **Split parallax**: Individual letters move at different speeds
-- **Opacity fade**: Text fades as it nears viewport edge
-- **Sticky tracking**: Fixed text that changes content on scroll (scrollytelling)
+#### Geometric Sans (Modern Tech)
 
-### Hover Typography
-- **Letter spacing expand**: `letter-spacing: 0 -> 0.05em` on hover
-- **Underline draw**: Border-bottom animates width 0% -> 100% from left
-- **Gradient sweep**: Gradient background-position shifts on hover
-- **Weight shift**: Variable font weight increases on hover (400 -> 600)
+- **Heading**: Geist, Inter Tight, Manrope
+- **Body**: Inter, Geist, Source Sans 3
+- **Mono**: JetBrains Mono, Fira Code
 
-### Text as Texture
-- **Text masking**: Video or gradient clipped inside text shape
-- **Outlined text**: `-webkit-text-stroke: 1px black; color: transparent;`
-- **Text shadow layers**: Multiple offset shadows creating 3D extrusion
-- **Glitch effect**: RGB channel split + skew for cyber aesthetic
+```css
+/* Recommended import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
----
+font-family: 'Manrope', sans-serif;
+font-family: 'Inter', sans-serif;
+```
 
-## 4. Micro-Interactions
+#### Editorial Pairs
 
-### Button Interactions
-- **Hover**: `translateY(-1px)`, shadow elevation +1, 200ms ease-out
-- **Active/Press**: `translateY(1px)`, shadow elevation -1, 100ms ease-in
-- **Loading**: Width morphs to circle, spinner appears, text fades
-- **Success**: Checkmark draws via SVG stroke-dashoffset, green pulse
-- **Magnetic**: Button subtly follows cursor within 20px radius (CSS transform on :hover area)
+- **Heading**: Playfair Display, Cormorant Garamond
+- **Body**: Lato, Work Sans
 
-### Form Interactions
-- **Focus**: Border color transition to primary + subtle glow shadow (0 0 0 3px primary at 20%)
-- **Label float**: Placeholder transitions to top-left label on focus/fill
-- **Validation**: Green check or red X fades in with 200ms; shake on error (translateX +/- 4px, 3 cycles)
-- **Toggle switch**: Knob slides with spring physics; background color transition
-- **Checkbox**: Check draws with SVG path animation; subtle scale pop (1.0 -> 1.15 -> 1.0)
+#### Brand Pairs
 
-### Card Interactions
-- **Hover lift**: `translateY(-4px)` + shadow increase + border color shift
-- **Image zoom**: Inner image scales 1.05 with overflow hidden on card
-- **Info reveal**: Overlay slides up from bottom on hover
-- **3D tilt**: Card rotates slightly based on cursor position (perspective 1000px, rotateX/Y +/- 5deg)
+- **Heading**: Poppins, DM Sans
+- **Body**: Open Sans, Roboto
 
-### Navigation Interactions
-- **Active indicator**: Underline or pill slides between items (layout animation)
-- **Mega menu**: Fade + slight slide down; stagger child links
-- **Hamburger**: Lines morph to X with rotate + scale transforms
-- **Scroll spy**: Active section highlight transitions smoothly
+### Variable Font Usage
 
-### Feedback Micro-Interactions
-- **Toast notification**: Slide in from edge + progress bar countdown + swipe dismiss
-- **Badge pulse**: New notification dot scales 0->1 with spring + subtle pulse loop
-- **Skeleton loading**: Shimmer gradient sweeps across placeholder blocks
-- **Confetti**: Burst of particles on major success (checkout, signup)
-- **Cursor**: Custom cursor that scales on clickable elements
+```css
+.variable-heading {
+  font-variation-settings: 'wght' 700, 'wdth' 100;
+  transition: font-variation-settings 0.3s ease;
+}
+
+.variable-heading:hover {
+  font-variation-settings: 'wght' 800, 'wdth' 110;
+}
+```
 
 ---
 
-## 5. Scroll & Parallax Effects
+## 3. Futuristic Typography
 
-### Parallax Types
-- **Layered depth**: Background moves 0.2x, midground 0.5x, foreground 1.0x scroll speed
-- **Reveal parallax**: Image fixed until container scrolls past, then releases
-- **Text parallax**: Headings move slower than body, creating depth separation
-- **Horizontal scroll**: Vertical scroll translates to horizontal movement for gallery sections
+Inspired by GRAXE-BEOSA, cyberpunk styles, and 2026 UI trends.
 
-### Scroll-Triggered Animations
-- **Intersection Observer**: Trigger at 20% visibility for entrance animations
-- **Progress bars**: Width tied to scroll position within container
-- **Number counters**: Count up when scrolled into view
-- **Line draw**: SVG paths draw themselves as user scrolls
-- **Fade sections**: Each section fades in as it enters viewport
+### Cyberpunk Font Characteristics
 
-### Smooth Scrolling
-- `scroll-behavior: smooth` for anchor links
-- Lenis or Locomotive Scroll for momentum/inertia scrolling
-- Pin sections for scrollytelling (GSAP ScrollTrigger)
+- Wide, geometric letterforms
+- Sharp angles and cut corners
+- High-tech variable weight
+- Monospace accents
+- Glow effects
+
+### Recommended Cyber Fonts
+
+1. **Orbitron** — Wide, geometric, futuristic
+2. **Rajdhani** — Technical, squared
+3. **Oxanium** — Gaming, wide
+4. **Exo 2** — Clean, futuristic
+5. **Chakra Petch** — Sharp, angular
+6. **Teko** — Condensed, tech
+
+### Cyber Heading Style
+
+```css
+.cyber-heading {
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #00D4FF, #FF00AA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+}
+
+.cyber-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  letter-spacing: 0.15em;
+  color: #00D4FF;
+}
+```
+
+### Samurai-Cyber Style
+
+Japanese + Cyberpunk fusion.
+
+```css
+.samurai-heading {
+  font-family: 'Noto Sans JP', 'Oswald', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+```
+
+### Tesla Cybertruck Style
+
+Industrial, bold, condensed.
+
+```css
+.industrial-heading {
+  font-family: 'Teko', 'Oswald', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #E5E5E5;
+}
+```
+
+---
+
+## 4. Kinetic Typography
+
+### Gradient Text
+
+```css
+.gradient-text {
+  background: linear-gradient(90deg, #667eea, #764ba2, #f97316, #ec4899);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+```
+
+### Text Reveal
+
+```css
+.text-reveal {
+  overflow: hidden;
+}
+
+.text-reveal span {
+  display: inline-block;
+  transform: translateY(100%);
+  animation: reveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes reveal {
+  to { transform: translateY(0); }
+}
+```
+
+### Staggered Entrance
+
+```css
+.stagger-enter > * {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: stagger-in 0.6s ease forwards;
+}
+
+.stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-enter > *:nth-child(2) { animation-delay: 100ms; }
+.stagger-enter > *:nth-child(3) { animation-delay: 200ms; }
+.stagger-enter > *:nth-child(4) { animation-delay: 300ms; }
+.stagger-enter > *:nth-child(5) { animation-delay: 400ms; }
+
+@keyframes stagger-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+### Parallax Type
+
+```css
+.parallax-text {
+  transform: translateZ(var(--depth, 0px));
+  will-change: transform;
+}
+```
+
+### Glow Pulse
+
+```css
+.glow-pulse {
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { 
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5); 
+  }
+  50% { 
+    text-shadow: 0 0 30px rgba(0, 212, 255, 0.8),
+                0 0 60px rgba(0, 212, 255, 0.4); 
+  }
+}
+```
+
+---
+
+## 5. Micro-interactions
+
+### Button Hover Lift
+
+```css
+.btn-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease;
+}
+
+.btn-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-lift:active {
+  transform: translateY(0);
+}
+```
+
+### Magnetic Button
+
+```css
+.magnetic-btn {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.magnetic-btn:hover {
+  transform: scale(1.05);
+}
+```
+
+### 3D Tilt Card
+
+```css
+.tilt-card {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.tilt-content {
+  transition: transform 0.2s ease-out;
+}
+
+.tilt-card:hover .tilt-content {
+  transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+}
+```
+
+### Shimmer Effect
+
+```css
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+```
+
+### Loading Skeleton
+
+```css
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+```
+
+### Input Focus Ring
+
+```css
+.input-focus {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-focus:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+```
+
+### Checkbox Morph
+
+```css
+.checkbox-morph {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.checkbox-morph:checked {
+  background: #4F46E5;
+  transform: scale(1.1);
+}
+```
+
+---
+
+## 6. Scroll & Parallax
+
+### Smooth Scroll
+
+```css
+html {
+  scroll-behavior: smooth;
+}
+```
+
+### Parallax Container
+
+```css
+.parallax-wrapper {
+  perspective: 1px;
+  transform-style: preserve-3d;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.parallax-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.parallax-back {
+  transform: translateZ(-1px) scale(2);
+}
+
+.parallax-base {
+  transform: translateZ(0);
+}
+
+.parallax-front {
+  transform: translateZ(0.5px) scale(0.5);
+}
+```
+
+### Scroll Trigger Fade
+
+```css
+.scroll-fade {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.scroll-fade.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+```
 
 ### Scroll Progress
-- Thin bar at top: `position: fixed`, width = scroll percentage
-- Circular indicator: SVG stroke-dashoffset animated by scroll
-- Section dots: Active dot scales up, inactive dots fade
+
+```css
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4F46E5, #EC4899);
+  transform-origin: 0%;
+  transform: scaleX(var(--progress, 0));
+}
+```
+
+### Sticky Reveal
+
+```css
+.sticky-reveal {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+```
 
 ---
 
-## 6. Animation Timing & Easing
+## 7. Animation Timing
 
-### Duration Guidelines
-| Type | Duration | Notes |
-|------|----------|-------|
-| Micro-feedback | 100-200ms | Button press, toggle, checkbox |
-| Hover transitions | 200-300ms | Color, shadow, transform changes |
-| UI state change | 300-400ms | Modal open, tab switch, menu |
-| Page transition | 400-600ms | Route change, full-screen overlay |
-| Entrance animation | 500-800ms | Elements appearing on load/scroll |
-| Ambient loop | 8-20s | Background gradient shift, floating elements |
+### Easing Curves
 
-### Easing Functions
-| Name | Value | Use Case |
-|------|-------|----------|
-| Linear | linear | Progress bars, continuous rotation |
-| Ease | ease | General purpose, balanced |
-| Ease-out | ease-out | Entrances (fast start, gentle stop) |
-| Ease-in | ease-in | Exits (gentle start, fast exit) |
-| Ease-in-out | ease-in-out | Symmetric transitions (hovers) |
-| Spring | cubic-bezier(0.34, 1.56, 0.64, 1) | Playful bouncy effects |
-| Smooth decel | cubic-bezier(0.22, 1, 0.36, 1) | Premium entrances (Apple-style) |
-| Dramatic | cubic-bezier(0.87, 0, 0.13, 1) | Hero reveals, impactful moments |
+| Name | Value | Usage |
+|------|-------|-------|
+| easeIn | `cubic-bezier(0.4, 0, 1, 1)` | Fade in |
+| easeOut | `cubic-bezier(0, 0, 0.2, 1)` | Fade out |
+| easeInOut | `cubic-bezier(0.4, 0, 0.2, 1)` | Standard |
+| spring | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Bouncy |
+| liquid | `cubic-bezier(0.25, 1, 0.5, 1)` | Smooth |
 
-### Stagger Patterns
-- **Rapid**: 50ms between items (dense lists, quick feel)
-- **Standard**: 100-150ms (card grids, nav items)
-- **Dramatic**: 200-300ms (hero elements, storytelling)
-- **Cascading**: Duration increases per item (first fast, last slow)
+### Duration Scale
 
-### Performance Rules
-- **Animate only**: transform and opacity (GPU-accelerated)
-- **Avoid**: width, height, top, left, margin, padding animations
-- **will-change**: Apply before animation, remove after
-- **Reduced motion**: Respect `prefers-reduced-motion`; provide instant-state fallbacks
-- **60fps target**: Any jank destroys premium feel
+| Token | Duration | Usage |
+|-------|---------|-------|
+| instant | 0ms | No animation |
+| faster | 100ms | Micro-interactions |
+| fast | 150ms | Hover states |
+| base | 200ms | Standard |
+| slow | 300ms | Movement |
+| slower | 500ms | Complex |
 
-### 3D Element Motion
-- **Floating**: translateY +/- 10px with sine wave, 4-6s loop
-- **Orbit**: rotate around center point slowly (20-40s)
-- **Mouse tilt**: rotateX/Y based on cursor position, max 10deg, smooth lerp
-- **Scroll rotate**: element rotates based on scroll progress
-- **Breathing**: scale 1.0 -> 1.03 -> 1.0, 6-8s loop
+### Transition Presets
+
+```css
+.transition-micro {
+  transition: all 150ms ease;
+}
+
+.transition-standard {
+  transition: all 200ms ease;
+}
+
+.transition-bouncy {
+  transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.transition-liquid {
+  transition: all 400ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+```
+
+### Reduced Motion
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+---
+
+## 8. Generative Typography
+
+Adaptive typography for generative UI.
+
+### Adaptive Type Scale
+
+```css
+.generative-type {
+  --complexity: var(--complexity, 0);
+  font-size: calc(1rem + var(--complexity) * 0.25rem);
+  font-weight: calc(400 + var(--complexity) * 100);
+  letter-spacing: calc(0em - var(--complexity) * 0.02em);
+}
+```
+
+### Complexity Animation
+
+```css
+.complexity-enter {
+  animation: complexity-reveal 0.6s ease forwards;
+}
+
+@keyframes complexity-reveal {
+  from {
+    opacity: 0;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+  }
+  to {
+    opacity: 1;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+```
+
+### Font Weight Shift
+
+```css
+.weight-shift {
+  transition: font-weight 0.3s ease;
+}
+
+.weight-shift:hover {
+  font-weight: 600;
+}
+```
+
+### Type Scale Shift on Scroll
+
+```css
+.type-scale-scroll {
+  font-size: clamp(
+    var(--min-size),
+    calc(var(--min-size) + var(--scroll) * 1vw),
+    var(--max-size)
+  );
+}
+```
+
+### Variable Animation
+
+```css
+.variable-animate {
+  font-variation-settings: 'wght' 300;
+  transition: font-variation-settings 0.3s ease;
+}
+
+.variable-animate:hover {
+  font-variation-settings: 'wght' 700;
+}
+
+/* Animate on scroll */
+.variable-animate.scroll-active {
+  animation: variable-weight 2s ease-in-out infinite;
+}
+
+@keyframes variable-weight {
+  0%, 100% { font-variation-settings: 'wght' 400; }
+  50% { font-variation-settings: 'wght' 600; }
+}

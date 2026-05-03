@@ -1,228 +1,510 @@
-# Visual Effects System
+# Visual Effects Reference
+
+This file contains the visual effects library for the Attractive UI Designer skill. It covers glassmorphism, neumorphism, liquid glass, shadows, glows, textures, 3D treatments, and light physics.
 
 ## Table of Contents
-1. Morphism Family (Glass, Neu, Clay, Liquid, Skeu)
-2. Shadow & Depth Systems
-3. Glow & Light Effects
-4. Glass & Reflection Effects
-5. Texture & Noise
-6. 3D Object Treatments
+
+1. [Glassmorphism](#glassmorphism)
+2. [Neumorphism](#neumorphism)
+3. [Claymorphism](#claymorphism)
+4. [Liquid Glass (2026)](#liquid-glass-2026)
+5. [Dark Glassmorphism](#dark-glassmorphism)
+6. [Spatial Design System](#spatial-design-system-2026)
+7. [Shadows & Elevation](#shadows--elevation)
+8. [Glows & Neon Effects](#glows--neon-effects)
+9. [Textures & Backgrounds](#textures--backgrounds)
+10. [3D Treatments](#3d-treatments)
+11. [AI Ethics Design Layer](#ai-ethics-design-layer)
+12. [XAI Visualizations](#xai-visualizations)
 
 ---
 
-## 1. Morphism Family
+## 1. Glassmorphism
 
-### Glassmorphism
-- **Core**: Frosted glass effect using `backdrop-filter: blur()` + semi-transparent backgrounds
-- **CSS recipe**: `background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2);`
-- **Borders**: 1px subtle white border at 10-30% opacity creates the glass edge
-- **Shadows**: Soft diffuse shadow beneath, `box-shadow: 0 8px 32px rgba(0,0,0,0.1)`
-- **Best on**: Vibrant, colorful, or gradient backgrounds where content shows through
-- **Dark mode variant**: Use `rgba(0,0,0,0.3)` background with `blur(16px)`, border `rgba(255,255,255,0.05)`
-- **Depth stacking**: Multiple glass layers at different blur intensities (8px, 16px, 24px) create hierarchy
-- **Avoid**: Busy backgrounds with high-frequency patterns; ensure 4.5:1 contrast for text
+Classic glass effect with backdrop blur and transparency.
 
-### Neumorphism (Soft UI)
-- **Core**: Elements appear extruded from or pressed into background using dual shadows
-- **Color rule**: Element color must match background almost exactly (monochromatic)
-- **Raised element shadow pair**:
-  - Light shadow: `inset` false, color lighter than bg (white at 80% opacity), x:-6px y:-6px blur:12px
-  - Dark shadow: `inset` false, color darker than bg (black at 20% opacity), x:6px y:6px blur:12px
-- **Pressed element shadow pair**:
-  - Inner light: `inset` true, white at 50%, x:-4px y:-4px blur:8px
-  - Inner dark: `inset` true, black at 15%, x:4px y:4px blur:8px
-- **Radius**: Large radii essential (16px-24px minimum); sharp edges destroy the illusion
-- **Light source**: Must be consistent across ALL elements (typically top-left)
-- **Background**: Off-white (#F0F0F3) or off-black (#1A1A1D) — never pure white or pure black
-- **Accessibility risk**: Low contrast; compensate with larger text, bold weights, or accent colors on interactive elements
-- **Best for**: Controls, toggles, dials, music players, IoT dashboards
-
-### Claymorphism
-- **Core**: Playful 3D elements with soft inflated shapes, like molded clay
-- **Shadow**: Single large diffuse shadow dropped diagonally (not dual like neumorphism)
-  - `box-shadow: 6px 6px 0px rgba(0,0,0,0.15), 12px 12px 24px rgba(0,0,0,0.08)`
-- **Border**: 2-3px solid border in slightly darker shade of element color
-- **Colors**: Pastel, muted, friendly palettes — mint, peach, lavender, butter yellow
-- **Radius**: Very large (24px-32px), almost bubbly
-- **3D feel**: Inner highlight at top-left (white, 20% opacity, no blur) simulates dome reflection
-- **Best for**: Creative tools, children's apps, casual gaming, education, friendly SaaS
-- **Typography pairing**: Rounded sans-serif (Nunito, Quicksand, Fredoka)
-
-### Liquid Glass (Apple Vision-era)
-- **Core**: Multi-layered physical glass with refraction, reflection, and depth response
-- **Properties**:
-  - Specular highlights that shift with implied light source
-  - Edge refraction (content behind bends slightly at glass edges)
-  - Translucency varies by context (more opaque when focused, more transparent when idle)
-  - Rounded corners that feel "melting" rather than mechanical (concentric with hardware)
-- **Implementation layers**:
-  - Base: frosted blur (20-40px)
-  - Reflection layer: subtle gradient sweep simulating light bounce
-  - Depth layer: content behind shifts slightly via transform to simulate refraction
-- **Motion**: Elements fluidly morph shape when expanding/collapsing; tab bars shrink on scroll
-- **Best for**: Spatial computing prep, premium iOS/macOS apps, futuristic interfaces
-- **Contrast requirement**: Higher than standard glassmorphism; add solid backing behind critical text
-
-### Skeuomorphism (Modern Revival)
-- **Core**: Real-world material imitation with texture, sheen, and physical accuracy
-- **Textures**: Leather grain, brushed metal, fabric weave, paper fiber, plastic gloss
-- **Lighting**: Photorealistic highlights and shadows matching material properties
-- **Use sparingly**: One or two realistic elements against clean backgrounds; avoid full skeuomorphic UIs
-- **Best for**: Luxury brands, music apps (vinyl, tape), note apps (paper), fashion e-commerce
-
----
-
-## 2. Shadow & Depth Systems
-
-### Shadow Hierarchy (Material Design 3 + Modern Evolution)
-| Level | Elevation | Use Case | Shadow Values (light mode) |
-|-------|-----------|----------|---------------------------|
-| 0 | Flat | Backgrounds, inactive | none |
-| 1 | 1dp | Resting cards, switches | `0 1px 3px rgba(0,0,0,0.12)` |
-| 2 | 3dp | Raised buttons, thumbnails | `0 3px 6px rgba(0,0,0,0.15)` |
-| 3 | 6dp | Floating buttons, dialogs | `0 6px 12px rgba(0,0,0,0.18)` |
-| 4 | 12dp | Modals, drawers | `0 12px 24px rgba(0,0,0,0.22)` |
-| 5 | 24dp | Full-screen overlays | `0 24px 48px rgba(0,0,0,0.28)` |
-
-### Soft Shadows (Neumorphic / Modern)
-- Use `rgba(0,0,0,0.08)` to `rgba(0,0,0,0.15)` for ambient shadows
-- Blur radius should be 2x-3x the spread/y-offset
-- Layered shadows create realism:
-  - Layer 1 (ambient): `0 4px 20px rgba(0,0,0,0.06)` — broad, soft
-  - Layer 2 (direct): `0 2px 8px rgba(0,0,0,0.1)` — sharper, closer
-
-### Colored Shadows
-- Shadows tinted with brand color at low opacity create harmony
-- Example: `0 8px 24px rgba(99,102,241,0.25)` for indigo-themed card
-- Use on buttons and CTAs to extend their visual presence
-- Never use pure black shadows on colored backgrounds
-
-### Inner Shadows
-- Inset shadows create depression, input fields, pressed states
-- `box-shadow: inset 0 2px 4px rgba(0,0,0,0.06)` for subtle inset
-- Combine with slight border-top highlight for 3D groove effect
-
-### Light Source Consistency
-- Define one primary light source (usually top-left or directly above)
-- All shadows cast away from light; all highlights face toward light
-- In dark mode, light source appears to emanate from UI elements themselves (glow outward)
-
----
-
-## 3. Glow & Light Effects
-
-### Neon Glow
-- Outer glow: `box-shadow: 0 0 10px #color, 0 0 20px #color, 0 0 40px #color`
-- Use neon on dark backgrounds only (black, deep navy, dark purple)
-- Effective colors: Cyan (#00F0FF), Magenta (#FF00AA), Lime (#39FF14), Electric Purple (#B026FF)
-- Pulsing animation: opacity 0.6 -> 1.0 over 2s ease-in-out infinite
-- Border glow: 1px solid neon color + outer spread shadow
-
-### Holographic Glow
-- Multi-color shifting glow using conic-gradient or CSS hue-rotate animation
-- `filter: hue-rotate(360deg)` animated over 8-12s creates rainbow shimmer
-- Combine with semi-transparent mesh gradient overlay
-- Best on cards, badges, and premium tier indicators
-
-### Ambient Glow (Soft)
-- Large diffuse colored light behind elements
-- `box-shadow: 0 0 80px 20px rgba(99,102,241,0.3)` — massive blur, large spread
-- Creates "aura" effect around important elements
-- Use for hero CTAs, featured cards, or primary buttons
-
-### Spotlight / Cursor Glow
-- Radial gradient mask following mouse position
-- CSS: `radial-gradient(circle at var(--x) var(--y), transparent 150px, black 250px)`
-- Reveals content or illuminates cards as cursor approaches
-- Spotlight border: gradient border that rotates or follows cursor
-- Combine with `mix-blend-mode: screen` for light-dodge effect
-
-### Text Glow
-- `text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)`
-- Gradient text with glow: clip text to gradient, add matching text-shadow
-- Neon text: bright color + matching outer glow layers
-
----
-
-## 4. Glass & Reflection Effects
-
-### Frosted Glass Recipe
 ```css
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 ```
-- `saturate()` enhances colors showing through, making glass feel premium
-- On Safari, always include `-webkit-backdrop-filter`
-- Performance: limit to 3-5 glass elements per viewport
 
-### Reflection / Sheen
-- Linear gradient overlay at 10-20% opacity simulating light bounce
-- `background-image: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.2) 55%, transparent 60%)`
-- Animate `background-position` for "shimmer" effect on cards
-- Best on dark cards, image overlays, and premium badges
+### Best Practices
 
-### Caustics / Refraction
-- Simulate light bending through glass using displaced content behind
-- CSS `transform: scale(1.02) translate(-2px, -2px)` on background content inside glass container
-- Chromatic aberration: slight RGB channel separation at edges (advanced, use sparingly)
+- Use over rich backgrounds (gradients, images, aurora)
+- Ensure 4.5:1+ contrast for text
+- Limit to 3-5 elements per viewport for performance
+- Provide prefers-reduced-motion fallback
 
 ---
 
-## 5. Texture & Noise
+## 2. Neumorphism
 
-### Grain / Film Noise
-- Subtle noise overlay at 2-5% opacity adds tactile quality
-- CSS: `background-image: url("data:image/svg+xml,...noise..."); opacity: 0.03; pointer-events: none;`
-- Use `mix-blend-mode: overlay` or `soft-light`
-- Prevents "flat" digital appearance; essential on solid color backgrounds
-- Static noise for texture; animated noise (subtle shift) for film-like quality
+Soft, tactile UI with subtle shadows that create depth.
 
-### Dot Patterns / Dither
-- Ordered dither patterns for retro-futuristic aesthetic
-- Halftone dots using radial-gradient repeat: `background: radial-gradient(circle, #000 1px, transparent 1.5px); background-size: 8px 8px;`
-- Combine with clip-path to contain within shapes
+```css
+.neu {
+  background: #e0e5ec;
+  border-radius: 16px;
+  box-shadow: 
+    8px 8px 16px #a3b1c6,
+    -8px -8px 16px #ffffff;
+}
+```
 
-### Mesh / Grid Lines
-- Subtle perspective grid lines for depth and tech feel
-- CSS repeating-linear-gradient at 5% opacity
-- Perspective transform (`perspective(1000px) rotateX(60deg)`) for floor-grid effect
-- Color: brand accent at 8-12% opacity
+### Best Practices
 
-### Noise on Gradients
-- Aurora and mesh gradients benefit from grain overlay to reduce banding
-- Apply noise as top layer at 3% opacity, `mix-blend-mode: overlay`
-- Creates organic, living feel vs sterile digital gradient
+- Best for calm, tactile controls (health/wellness apps)
+- Use sparingly due to accessibility risks
+- Always test contrast ratios
 
 ---
 
-## 6. 3D Object Treatments
+## 3. Claymorphism
 
-### Abstract 3D Shapes as Decor
-- Floating spheres, tori, cubes, and blobs as background/hero decoration
-- Metallic finish: gold, silver, chrome with environment reflections
-- Glass finish: refractive with caustic light patterns
-- Matte finish: soft plastic/clay with rounded edges
-- Position: partially off-screen, floating with gentle parallax or drift animation
+Soft, friendly 3D look with inner shadows.
 
-### Isometric Illustrations
-- 30-degree angle projection (isometric) for tech/building/block diagrams
-- Flat color + soft shadow beneath each block
-- Use for: feature explanations, process flows, dashboard empty states
-- Combine with subtle gradient on each face for depth
+```css
+.clay {
+  background: linear-gradient(145deg, #f0f0f0, #cacaca);
+  border-radius: 20px;
+  box-shadow: 
+    8px 8px 16px #bebebe,
+    -8px -8px 16px #ffffff;
+}
+```
 
-### 3D Text
-- Thick extrusion with beveled edges
-- Metallic or glass material
-- Perspective camera with slight rotation on mouse move
-- Shadow cast onto "floor" plane beneath
+---
 
-### Floating Depth
-- Elements at different Z-levels with parallax response to scroll or mouse
-- Near elements: move faster, larger, more blur on background
-- Far elements: move slower, smaller, sharper
-- Creates immersive depth without full 3D engine
+## 4. Liquid Glass (2026)
+
+Apple's flagship dynamic material from WWDC 2025. Features refraction (lensing), adaptive translucency, specular highlights that respond to cursor/motion, and fluid morphing.
+
+### Core Characteristics
+
+- **Lensing & Refraction**: Content behind glass bends/distorts at edges
+- **Specular Highlights**: Bright reflections that shift with cursor or device motion
+- **Dynamic Translucency**: Opacity/blur adapts based on context
+- **Fluidity**: Elements "melt", morph, or ripple during state changes
+- **Multi-layered Depth**: Combines backdrop-filter, inner highlights, outer glows, parallax
+
+### Implementation Recipe
+
+```css
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.10);
+  /* Dark mode: rgba(0, 0, 0, 0.15-0.22) */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 22px;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.15),
+    inset 0 6px 24px rgba(255, 255, 255, 0.30);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Animated specular shimmer */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  pointer-events: none;
+  animation: liquid-shimmer 10-14s linear infinite;
+  opacity: 0.65;
+}
+
+@keyframes liquid-shimmer {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(350%); }
+}
+```
+
+### Variants
+
+- **Regular**: Adaptive, versatile, intelligent legibility
+- **Clear**: More transparent for media-rich backgrounds
+
+### Advanced Enhancements
+
+- Cursor-following refraction using `--mouse-x` / `--mouse-y`
+- Mouse tilt: `perspective(1200px)` + subtle `rotateX/Y`
+- Refraction via SVG filters (`feDisplacementMap`, `feTurbulence`)
+- Dark mode: Deep navy/black + neon glows (`mix-blend-mode: screen`)
+
+### Usage Guidelines
+
+- Apply to cards, buttons, panels, navbars, modals
+- Always ensure 4.5:1+ contrast for text
+- Limit heavy effects for performance
+- Provide prefers-reduced-motion fallback
+
+---
+
+## 5. Dark Glassmorphism
+
+Premium moody depth for 2026 with dark backgrounds.
+
+```css
+.dark-glass {
+  background: rgba(5, 5, 15, 0.7);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.05);
+}
+```
+
+### Color Pairings
+
+- Base: Deep navy (#050510) or Obsidian (#0A0A0F)
+- Accents: Cyan (#00D4FF), Magenta (#FF00AA), Acid Lime (#ADFF2F)
+- Glow: Use `box-shadow: 0 0 20px rgba(0, 212, 255, 0.3)`
+
+---
+
+## 6. Spatial Design System (2026)
+
+Spatial design bridges 2D screens and spatial computing (visionOS, AR/VR). Depth becomes a functional hierarchy tool.
+
+### Key Techniques
+
+- **Z-Axis Hierarchy**: Important elements advance (sharper focus, stronger highlights), secondary recedes (more blur, lower contrast)
+- **Parallax & Floating Layers**: Multiple layers at different speeds create 3D space
+- **Adaptive Depth**: Liquid Glass panels adjust translucency based on context
+- **3D Interactions**: Mouse-tilt cards, magnetic hover zones
+- **Progressive Immersion**: Flat → spatial depth on scroll/focus
+
+### Implementation
+
+```css
+.spatial-element {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.spatial-foreground {
+  transform: translateZ(20px) scale(0.95);
+  filter: blur(0);
+}
+
+.spatial-midground {
+  transform: translateZ(0);
+}
+
+.spatial-background {
+  transform: translateZ(-20px) scale(1.05);
+  filter: blur(4px);
+  opacity: 0.7;
+}
+```
+
+### Thematic Applications
+
+- **Cyber**: Neon-refracting Liquid Glass + grid overlays
+- **Luxury**: Soft Liquid Glass over liquid marble + gold specular
+- **Samurai-Cyber**: Asymmetric floating panels
+
+---
+
+## 7. Shadows & Elevation
+
+### Shadow Scale (4px Base)
+
+| Level | Shadow | Usage |
+|-------|--------|-------|
+| 1 | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
+| 2 | `0 4px 8px rgba(0,0,0,0.08)` | Cards |
+| 3 | `0 8px 16px rgba(0,0,0,0.1)` | Buttons |
+| 4 | `0 16px 32px rgba(0,0,0,0.15)` | Modals |
+| 5 | `0 24px 48px rgba(0,0,0,0.2)` | Overlays |
+
+### Colored Shadows
+
+```css
+.glow-cyan {
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+}
+
+.glow-magenta {
+  box-shadow: 0 4px 20px rgba(255, 0, 170, 0.4);
+}
+
+.gold-glow {
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+}
+```
+
+---
+
+## 8. Glows & Neon Effects
+
+### Neon Glow Recipe
+
+```css
+.neon-cyan {
+  color: #00D4FF;
+  text-shadow: 
+    0 0 5px #00D4FF,
+    0 0 10px #00D4FF,
+    0 0 20px #00D4FF,
+    0 0 40px #00D4FF;
+}
+
+.neon-border {
+  border: 1px solid #00D4FF;
+  box-shadow: 
+    0 0 5px #00D4FF,
+    inset 0 0 5px rgba(0, 212, 255, 0.2);
+}
+```
+
+### Holographic Effect
+
+```css
+.holographic {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 170, 0.3),
+    rgba(0, 212, 255, 0.3),
+    rgba(255, 215, 0, 0.3)
+  );
+  background-size: 200% 200%;
+  animation: holographic-shift 3s ease infinite;
+}
+
+@keyframes holographic-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+```
+
+---
+
+## 9. Textures & Backgrounds
+
+### Aurora Gradient
+
+```css
+.aurora {
+  background: 
+    radial-gradient(at 40% 20%, rgba(120, 80, 200, 0.4) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(0, 212, 255, 0.3) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(255, 0, 170, 0.2) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgba(0, 255, 170, 0.2) 0px, transparent 50%),
+    linear-gradient(at 100% 0%, rgba(30, 30, 60, 1) 0%, rgba(10, 10, 20, 1) 100%);
+}
+```
+
+### Mesh Gradient
+
+```css
+.mesh {
+  background: 
+    radial-gradient(at 25% 25%, rgba(100, 200, 255, 0.4) 0px, transparent 50%),
+    radial-gradient(at 75% 75%, rgba(255, 100, 200, 0.3) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(255, 200, 100, 0.2) 0px, transparent 50%),
+    #0a0a1a;
+}
+```
+
+### Grain/Noise Overlay
+
+```css
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+```
+
+---
+
+## 10. 3D Treatments
+
+### Mouse Tilt Card
+
+```css
+.tilt-card {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.tilt-content {
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tilt-card:hover .tilt-content {
+  transform: rotateX(var(--rotate-x, 0deg) rotateY(var(--rotate-y, 0deg));
+}
+```
+
+### Floating Animation
+
+```css
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.floating {
+  animation: float 4s ease-in-out infinite;
+}
+```
+
+### Parallax Layer
+
+```css
+.parallax-bg {
+  transform: translateZ(-50px) scale(1.5);
+}
+
+.parallax-mid {
+  transform: translateZ(0);
+}
+
+.parallax-fg {
+  transform: translateZ(50px) scale(0.8);
+}
+```
+
+---
+
+## 11. AI Ethics Design Layer
+
+Trust-enhancing visual components for ethical AI interfaces.
+
+### Trust Indicators
+
+- **AI Badges**: Small Liquid Glass pill with "AI" label + tooltip
+- Trust palette: Soft cyan (#00D4FF), Cool blues (#4A90D9)
+- Never hide AI involvement
+
+### Confidence Visualization
+
+```css
+.confidence-high {
+  background: linear-gradient(90deg, #00D4FF 0%, #00FF88 100%);
+}
+
+.confidence-medium {
+  background: linear-gradient(90deg, #FFAA00 0%, #FF6600 100%);
+}
+
+.confidence-low {
+  background: linear-gradient(90deg, #FF4444 0%, #FF6666 100%);
+  opacity: 0.7;
+}
+```
+
+### Ethical Color Language
+
+| Purpose | Color | Hex |
+|---------|-------|-----|
+| Trust/Transparency | Cool blues | #00D4FF, #4A90D9 |
+| Warning/Bias | Amber | #FFAA00 |
+| Success | Soft green | #00FF88 |
+| Error | Muted rose | #FF6666 |
+
+### Explanation Panels
+
+- Use expandable Liquid Glass panels
+- Progressive disclosure for complexity
+- Clear, jargon-free language
+- Visual aids (flowcharts, highlights)
+
+---
+
+## 12. XAI Visualizations
+
+Explainable AI visualization patterns for premium interfaces.
+
+### SHAP Waterfall (Local Explanation)
+
+```css
+.shap-waterfall {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shap-bar {
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.shap-positive {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.8), rgba(0, 255, 136, 0.6));
+}
+
+.shap-negative {
+  background: linear-gradient(90deg, rgba(255, 170, 0, 0.6), rgba(255, 100, 100, 0.4));
+}
+```
+
+### SHAP Beeswarm (Global Overview)
+
+- Dots for each instance
+- X-position = SHAP value (impact)
+- Color = feature value (low → high)
+- Interactive with hover tooltips
+
+### LIME Bar Chart
+
+- Top N features ranked by weight
+- Horizontal bars
+- Color-coded: Cyan (positive), Amber (negative)
+
+### Attention Heatmap
+
+```css
+.attention-high {
+  background: rgba(255, 0, 100, 0.4);
+}
+
+.attention-medium {
+  background: rgba(255, 170, 0, 0.3);
+}
+
+.attention-low {
+  background: rgba(0, 212, 255, 0.2);
+}
+```
+
+### Counterfactual Cards
+
+```css
+.counterfactual-card {
+  background: rgba(255, 170, 0, 0.1);
+  border: 1px dashed rgba(255, 170, 0, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+}
+```
+
+### Best Practices for XAI UI
+
+1. **Start Simple**: Lead with natural language + one intuitive visual
+2. **Build Trust**: Always show confidence level
+3. **Enable Agency**: Interactive hover, sliders, regenerate buttons
+4. **Avoid Overload**: Spatial layering and progressive disclosure
+5. **Ethical Alignment**: Calm bias surfacing, human oversight paths
+6. **Performance**: Animate only transforms/opacity

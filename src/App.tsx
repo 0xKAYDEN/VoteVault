@@ -33,6 +33,8 @@ import Settings from "./pages/dashboard/Settings.tsx";
 import Premium from "./pages/dashboard/Premium.tsx";
 import MyThreads from "./pages/dashboard/MyThreads.tsx";
 import MyReviews from "./pages/dashboard/MyReviews.tsx";
+import Activity from "./pages/dashboard/Activity.tsx";
+import Favorites from "./pages/dashboard/Favorites.tsx";
 import Threads from "./pages/Threads.tsx";
 import ThreadDetail from "./pages/ThreadDetail.tsx";
 import NewThread from "./pages/NewThread.tsx";
@@ -47,6 +49,7 @@ import AdminReports from "./pages/admin/AdminReports.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import TermsOfService from "./pages/TermsOfService.tsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +101,7 @@ const App = () => (
                     <Route path="/categories/:slug" element={<CategoryServers />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
+
                     <Route path="/threads" element={<Threads />} />
                     <Route path="/threads/new" element={<NewThread />} />
                     <Route path="/threads/:publicId" element={<ThreadDetail />} />
@@ -114,6 +118,8 @@ const App = () => (
                       <Route path="premium" element={<Premium />} />
                       <Route path="threads" element={<MyThreads />} />
                       <Route path="reviews" element={<MyReviews />} />
+                      <Route path="activity" element={<Activity />} />
+                      <Route path="favorites" element={<Favorites />} />
                     </Route>
                     <Route path="/admin" element={<AdminLayout />}>
                       <Route index element={<AdminOverview />} />

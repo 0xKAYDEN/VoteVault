@@ -103,3 +103,76 @@ export const updateUserProfile = async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 };
+
+// Get user's own activity feed (votes, reviews, threads, logins)
+export const getMyActivity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { limit = 50 } = req.query;
+    const n = Math.min(Number(limit), 100);
+
+    // Votes cast
+    const [votes] = await db.query(
+      `SELECT 'vote' AS type, v.voted_at AS created_at,
+              s.name AS target_name, s.slug AS target_slug, NULL AS extra
+       FROM votes v
+       JOIN servers s ON v.server_id = s.id
+       WHERE v.voter_user_id = ?
+       ORDER BY v.voted_at DESC LIMIT ?`,
+      [userId, n]
+    );
+
+    // Reviews written
+    const [reviews] = await db.query(
+      `SELECT 'review' AS type, r.created_at,
+              s.name AS target_name, s.slug AS target_slug,
+              CAST(r.rating AS CHAR) AS extra
+       FROM reviews r
+       JOIN servers s ON r.server_id = s.id
+       WHERE r.user_id = ?
+       ORDER BY r.created_at DESC LIMIT ?`,
+      [userId, n]
+    );
+
+    // Threads created
+    const [threads] = await db.query(
+      `SELECT 'thread' AS type, t.created_at,
+              t.title AS target_name, t.public_id AS target_slug, NULL AS extra
+       FROM threads t
+       WHERE t.author_id = ?
+       ORDER BY t.created_at DESC LIMIT ?`,
+      [userId, n]
+    );
+
+    // Thread replies
+    const [replies] = await db.query(
+      `SELECT 'reply' AS type, tr.created_at,
+              t.title AS target_name, t.public_id AS target_slug, NULL AS extra
+       FROM thread_replies tr
+       JOIN threads t ON tr.thread_id = t.id
+       WHERE tr.author_id = ?
+       ORDER BY tr.created_at DESC LIMIT ?`,
+      [userId, n]
+    );
+
+    // Merge and sort by date
+    const all = [...votes, ...reviews, ...threads, ...replies]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, n);
+
+    // Summary counts
+    const [summary] = await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM votes WHERE voter_user_id = ?) AS total_votes,
+         (SELECT COUNT(*) FROM reviews WHERE user_id = ?) AS total_reviews,
+         (SELECT COUNT(*) FROM threads WHERE author_id = ?) AS total_threads,
+         (SELECT COUNT(*) FROM thread_replies WHERE author_id = ?) AS total_replies`,
+      [userId, userId, userId, userId]
+    );
+
+    res.json({ activities: all, summary: summary[0] });
+  } catch (error) {
+    logger.error('Error fetching user activity:', error);
+    res.status(500).json({ error: 'Failed to fetch activity' });
+  }
+};

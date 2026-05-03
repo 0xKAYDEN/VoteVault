@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile } from '../controllers/userController.js';
+import { getUserProfile, updateUserProfile, getMyActivity } from '../controllers/userController.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 import auth from '../middleware/auth.js';
 import db from '../db.js';
@@ -65,5 +65,6 @@ router.get('/:userId/threads', async (req, res) => {
 
 // Protected routes
 router.put('/profile', auth, updateUserProfile);
+router.get('/me/activity', auth, getMyActivity);
 
 export default router;

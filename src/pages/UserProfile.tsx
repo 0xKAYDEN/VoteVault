@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { UserTags } from "@/components/UserTag";
 import { SocialLinks } from "@/components/SocialLinks";
 import { AchievementDisplay } from "@/components/AchievementDisplay";
@@ -72,8 +73,15 @@ const UserProfile = () => {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [themes, setThemes] = useState<any[]>([]);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [msgRequestOpen, setMsgRequestOpen] = useState(false);
+  const [msgRequestText, setMsgRequestText] = useState("");
+  const [msgRequestStatus, setMsgRequestStatus] = useState<any>(null);
+  const [sendingMsgRequest, setSendingMsgRequest] = useState(false);
   const [formData, setFormData] = useState({
     display_name: "",
+    avatar_url: "",
     bio: "",
     banner_url: "",
     profile_theme: "default",
@@ -96,6 +104,7 @@ const UserProfile = () => {
       setProfile(data);
       setFormData({
         display_name: data.display_name || "",
+        avatar_url: data.avatar_url || "",
         bio: data.bio || "",
         banner_url: data.banner_url || "",
         profile_theme: data.profile_theme || "default",
@@ -132,6 +141,9 @@ const UserProfile = () => {
     if (user && userId && user.id !== userId) {
       api.userExperience.checkBlocked(userId)
         .then(d => setIsBlocked(d.isBlocked))
+        .catch(() => {});
+      api.messageRequests.check(userId)
+        .then(d => setMsgRequestStatus(d))
         .catch(() => {});
     }
   }, [userId, user]);
@@ -194,6 +206,53 @@ const UserProfile = () => {
       toast.error(error.message || "Failed");
     } finally {
       setBlockLoading(false);
+    }
+  };
+
+  const handleSendMsgRequest = async () => {
+    if (!msgRequestText.trim() || !userId) return;
+    setSendingMsgRequest(true);
+    try {
+      await api.messageRequests.send({ receiverId: userId, message: msgRequestText.trim() });
+      toast.success("Message request sent!");
+      setMsgRequestOpen(false);
+      setMsgRequestText("");
+      setMsgRequestStatus((prev: any) => ({ ...prev, sent: { status: "pending" } }));
+    } catch (e: any) {
+      if (e?.message?.includes("already friends") || (e as any)?.alreadyFriends) {
+        navigate(`/messages/${userId}`);
+      } else {
+        toast.error(e?.message || "Failed to send message request");
+      }
+    } finally {
+      setSendingMsgRequest(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      toast.error("Only JPG, PNG, WebP or GIF images are allowed");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const data = await api.upload.image(file);
+      const fullUrl = data.url.startsWith('http')
+        ? data.url
+        : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${data.url}`;
+      setFormData(f => ({ ...f, avatar_url: fullUrl }));
+      toast.success("Image uploaded — click Save to apply");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload image");
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
 
@@ -370,13 +429,25 @@ const UserProfile = () => {
                       )}
                       {!isBlocked && friendStatus === 'friends' && (
                         <>
-                          <Button variant="hero" size="sm">
+                          <Button variant="hero" size="sm" onClick={() => navigate(`/messages/${userId}`)}>
                             <MessageCircle className="h-4 w-4 mr-2" />Message
                           </Button>
                           <Button variant="outline" size="sm" onClick={removeFriend}>
                             <UserMinus className="h-4 w-4 mr-2" />Remove Friend
                           </Button>
                         </>
+                      )}
+                      {/* Non-friend message request */}
+                      {!isBlocked && friendStatus === 'none' && user && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={msgRequestStatus?.sent?.status === 'pending'}
+                          onClick={() => setMsgRequestOpen(true)}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          {msgRequestStatus?.sent?.status === 'pending' ? 'Request Sent' : 'Message'}
+                        </Button>
                       )}
                       {/* Block / Unblock — always visible for non-own profiles */}
                       <Button
@@ -396,6 +467,45 @@ const UserProfile = () => {
               {/* Edit Form */}
               {editing ? (
                 <div className="space-y-4">
+                  {/* Avatar upload */}
+                  <div>
+                    <Label>Profile Picture</Label>
+                    <div className="flex items-center gap-4 mt-2">
+                      <Avatar className="h-16 w-16 border-2 border-white/20">
+                        <AvatarImage src={formData.avatar_url || profile?.avatar_url} />
+                        <AvatarFallback className="bg-gradient-crimson text-white text-xl font-bold">
+                          {profile?.display_name?.[0] || profile?.username?.[0] || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingAvatar}
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          {uploadingAvatar
+                            ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Uploading…</>
+                            : <><Upload className="h-4 w-4 mr-2" />Upload Image</>}
+                        </Button>
+                        <Input
+                          placeholder="Or paste image URL…"
+                          value={formData.avatar_url}
+                          onChange={e => setFormData(f => ({ ...f, avatar_url: e.target.value }))}
+                          className="text-xs h-8"
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div>
                     <Label htmlFor="display_name">Display Name</Label>
                     <Input
@@ -552,6 +662,38 @@ const UserProfile = () => {
       {!editing && (
         <ProfileTabs userId={userId!} profile={profile} isOwnProfile={isOwnProfile} />
       )}
+
+      {/* ── Message Request Dialog ── */}
+      <Dialog open={msgRequestOpen} onOpenChange={setMsgRequestOpen}>
+        <DialogContent className="glass-strong border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Message Request</DialogTitle>
+            <DialogDescription>
+              You're not friends with <strong>{profile?.display_name || profile?.username}</strong> yet.
+              Send a message request — they can accept or decline it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <Textarea
+              placeholder="Write a short message to introduce yourself…"
+              value={msgRequestText}
+              onChange={e => setMsgRequestText(e.target.value.slice(0, 500))}
+              rows={4}
+              className="bg-white/5 border-white/10 resize-none"
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground text-right">{msgRequestText.length}/500</p>
+            <div className="flex gap-2">
+              <Button variant="hero" className="flex-1"
+                disabled={sendingMsgRequest || !msgRequestText.trim()}
+                onClick={handleSendMsgRequest}>
+                {sendingMsgRequest ? "Sending…" : "Send Request"}
+              </Button>
+              <Button variant="outline" onClick={() => setMsgRequestOpen(false)}>Cancel</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

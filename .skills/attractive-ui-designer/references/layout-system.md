@@ -1,249 +1,692 @@
-# Layout System
+# Layout System Reference
+
+This file covers bento grid architecture, spacing systems, card patterns, dashboard anatomy, hero sections, and responsive hierarchy.
 
 ## Table of Contents
-1. Bento Grid Architecture
-2. Spacing Systems
-3. Card Design Patterns
-4. Dashboard Layouts
-5. Hero Section Patterns
-6. Responsive Hierarchy
+
+1. [Spacing System](#spacing-system)
+2. [Bento Grid Architecture](#bento-grid-architecture)
+3. [Dashboard Layouts](#dashboard-layouts)
+4. [Hero Section Patterns](#hero-section-patterns)
+5. [Responsive Breakpoints](#responsive-breakpoints)
+6. [Vertical Rhythm](#vertical-rhythm)
+7. [Container System](#container-system)
+8. [Navigation Layout](#navigation-layout)
+9. [Generative Layout Patterns](#generative-layout-patterns)
 
 ---
 
-## 1. Bento Grid Architecture
+## 1. Spacing System
 
-### Core Concept
-Inspired by Japanese bento boxes: modular, self-contained blocks of varying sizes arranged in asymmetric but balanced compositions. Each block is a complete information unit.
+### 4px Base Scale
 
-### Structural Rules
-- **Grid base**: 4-column or 12-column system
-- **Gap consistency**: 12px-24px uniform spacing (never vary within a grid)
-- **Corner radius**: 12px-24px consistently applied to ALL blocks
-- **Max blocks**: 6-12 per visible section; more becomes chaos
-- **Hierarchy through size**: Largest block = primary message; smallest = supporting data
+| Token | Value | Usage |
+|-------|-------|-------|
+| 0 | 0 | Reset |
+| 1 | 4px | Tight spacing |
+| 2 | 8px | Icon gaps |
+| 3 | 12px | Component internal |
+| 4 | 16px | Standard padding |
+| 5 | 20px | Section padding |
+| 6 | 24px | Card padding |
+| 8 | 32px | Section gaps |
+| 10 | 40px | Large gaps |
+| 12 | 48px | Section margin |
+| 16 | 64px | Hero spacing |
+| 20 | 80px | Page margins |
+| 24 | 96px | Major sections |
 
-### CSS Implementation
+### Spacing Utilities
+
 ```css
-.bento-grid {
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+}
+```
+
+---
+
+## 2. Bento Grid Architecture
+
+### Classic 3-Column Bento
+
+```css
+.bento-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.bento-item-large {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.bento-item-tall {
+  grid-row: span 2;
+}
+```
+
+### Bento Card Pattern
+
+```css
+.bento-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s ease;
+}
+
+.bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+```
+
+###Responsive Bento
+
+```css
+.bento-responsive {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  gap: 16px;
 }
-.bento-item-large  { grid-column: span 2; grid-row: span 2; }
-.bento-item-wide   { grid-column: span 2; grid-row: span 1; }
-.bento-item-tall   { grid-column: span 1; grid-row: span 2; }
-.bento-item-small  { grid-column: span 1; grid-row: span 1; }
+
+@media (max-width: 1280px) {
+  .bento-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .bento-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-responsive {
+    grid-template-columns: 1fr;
+  }
+}
 ```
 
-### Content Patterns per Block
-1. **Hero block** (large): Feature image + headline + CTA
-2. **Stat block** (small): Big number + label + micro-chart
-3. **Icon block** (medium): Icon + 3-word title + 1-line description
-4. **Chart block** (wide): Mini graph + axis labels + summary
-5. **Quote block** (tall): Avatar + testimonial + name/role
-6. **List block** (medium): 3-5 items with checkmarks or bullets
+### Bento Variants
 
-### Bento Psychology
-- **Gestalt Proximity**: Elements within one block belong together
-- **Law of Similarity**: Uniform radii and gaps tie blocks into a whole
-- **Cognitive load reduction**: Snackable content vs wall-of-text
-- **Scanning pattern**: Eye moves from large to small in Z-pattern
-
-### Anti-Patterns
-- Too many blocks (20+): becomes spreadsheet chaos
-- Equal sizing everywhere: destroys hierarchy
-- Mixed radii or gaps: breaks visual unity
-- No mobile plan: must collapse to 1-2 columns gracefully
+| Layout | Description | Use Case |
+|--------|------------|----------|
+| 4-col | Full dashboard | Analytics |
+| 3-col | Standard | SaaS |
+| 2-col | Simplified | Mobile web |
+| 1-col | Single | Mobile app |
 
 ---
 
-## 2. Spacing Systems
+## 3. Dashboard Layouts
 
-### Base Unit
-- **4px base** (0.25rem) is standard; all spacing is multiple of 4
-- Avoid odd numbers (5px scales to 7.5px on 1.5x DPI = blurry)
+### Admin Dashboard Structure
 
-### Spacing Scale
-| Token | Value | Use Case |
-|-------|-------|----------|
-| space-1 | 4px | Tight padding, icon gaps |
-| space-2 | 8px | Inline elements, tight groups |
-| space-3 | 12px | Card internal padding (small) |
-| space-4 | 16px | Standard card padding |
-| space-5 | 20px | Button padding horizontal |
-| space-6 | 24px | Section gaps, card gaps |
-| space-8 | 32px | Section internal padding |
-| space-10 | 40px | Large section margins |
-| space-12 | 48px | Hero padding |
-| space-16 | 64px | Major section separation |
-| space-20 | 80px | Page-level vertical rhythm |
+```css
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 64px 1fr;
+  min-height: 100vh;
+}
 
-### Container Widths
-- **Max width**: 1280px-1440px for content; 1920px for full-bleed heroes
-- **Side padding**: 16px mobile, 24px tablet, 32px desktop, 48px wide
-- **Content width**: 65ch (characters) for reading text = ~680px max
+.dashboard-header {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
 
-### Vertical Rhythm
-- Line-height as spacing multiplier: heading line-height 1.2, body 1.6
-- Section separation: 80px-120px between major sections
-- Use `padding` not `margin` where possible to avoid collapse issues
+.dashboard-sidebar {
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+}
 
----
-
-## 3. Card Design Patterns
-
-### Card Structure
-Every card follows: **Visual -> Title -> Description -> Action**
-- Top: Icon, image, or chart (attention grabber)
-- Middle: Title in bold, 16-20px
-- Below: 1-2 lines description, 14px, muted color
-- Bottom: Single CTA or metadata
-
-### Card Variants
-**Standard Elevated**
-- Background: surface color
-- Border-radius: 12px-16px
-- Shadow: level 2 (3dp)
-- Padding: 16px-24px
-
-**Outlined**
-- Background: transparent or same as page
-- Border: 1px solid border-color
-- No shadow
-- Best for dense lists, settings panels
-
-**Filled / Feature**
-- Background: primary color at 5-10% opacity
-- Border: none
-- Subtle left or top accent border: 3px solid primary
-- Best for: featured item, recommended plan
-
-**Glass Card**
-- See Visual Effects glass recipe
-- Best on: gradient or image backgrounds
-- Content inside must have sufficient contrast
-
-**Interactive Hover States**
-- Hover: translateY(-2px to -4px) + shadow level increase (2->3 or 3->4)
-- Transition: 200ms-300ms ease-out
-- Active/pressed: translateY(0) + shadow decrease
-- Focus: 2px outline offset 2px in primary color
-
-### Card Spacing Internals
-- Padding: 20px-24px all sides
-- Gap between internal elements: 12px-16px
-- Icon to text: 12px
-- Title to description: 8px
-- Description to button: 16px
-
----
-
-## 4. Dashboard Layouts
-
-### Classic Dashboard Anatomy
-```
-[ Sidebar ] [ Header ]
-            [ KPI Row (3-4 metrics) ]
-            [ Main Chart Area    | Side Panel ]
-            [ Secondary Charts Row          ]
-            [ Data Table / Recent Activity  ]
+.dashboard-main {
+  padding: 24px;
+  overflow-y: auto;
+}
 ```
 
-### KPI Cards Row
-- 3-4 cards max in a row
-- Each card: Icon + Label + Big Number + Delta indicator (+/- %)
-- Height: 120px-160px
-- Use sparklines (tiny line charts) for trend context
-- Delta colors: green positive, red negative (or brand colors)
+### Analytics Dashboard
 
-### Chart Containers
-- Consistent padding: 20px-24px
-- Header: Chart title (left) + time filter/legend (right)
-- Minimum height: 300px for main charts, 200px for secondary
-- Use subtle grid lines: 1px dashed at 5% opacity
-- Tooltips: glass or dark background, 8px radius, 12px padding
+```css
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+}
 
-### Sidebar Design
-- Width: 240px-280px fixed (64px collapsed for icon-only)
-- Background: slightly different from main (surface-1 vs surface-2)
-- Active item: primary color background at 10% + primary text
-- Hover: background lightens/darkens 5%
-- Divider: 1px border between sections
+.metric-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 20px;
+}
 
-### Header / Top Bar
-- Height: 56px-64px
-- Content: Logo (left) | Search | Actions | Avatar (right)
-- Background: transparent or glass over scrolling content
-- Shadow: appears only after scroll (scroll-triggered elevation)
+.chart-card {
+  grid-column: span 2;
+  min-height: 300px;
+}
+
+.chart-card-full {
+  grid-column: span 4;
+  min-height: 400px;
+}
+```
+
+### Workspace Layout
+
+```css
+.workspace {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  height: 100vh;
+}
+
+.workspace-sidebar-left {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.workspace-main {
+  overflow-y: auto;
+}
+
+.workspace-sidebar-right {
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+```
 
 ---
 
-## 5. Hero Section Patterns
+## 4. Hero Section Patterns
 
-### Centered Text Hero
-- Background: solid, gradient, or image with overlay
-- Content: centered, max-width 800px
-- Title: 48px-72px, font-weight 700-800, tight line-height (1.1)
-- Subtitle: 18px-20px, muted, max-width 560px, centered
-- CTA: 1-2 buttons, 16px padding vertical, 32px horizontal
-- Spacing: title to subtitle 16px-24px; subtitle to buttons 32px-40px
+### Split Hero
 
-### Split Hero (Text + Visual)
-- Layout: 50/50 or 60/40 split
-- Left: Text content, vertically centered
-- Right: Image, illustration, 3D element, or product mockup
-- Mobile: stack vertically, visual first or text first depending on priority
+```css
+.hero-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 90vh;
+  align-items: center;
+}
 
-### Typography-Only Hero
-- Oversized text filling 80% of viewport width
-- Kinetic or scroll-responsive text
-- Minimal other elements; let type be the image
-- Background: subtle texture or single accent color
+.hero-content {
+  padding: 64px;
+}
 
-### Bento Hero
-- Entire hero is a bento grid of 4-6 feature blocks
-- No separate title area; title is one of the blocks
-- Immediately shows product capability through modular preview
+.hero-visual {
+  position: relative;
+  min-height: 90vh;
+}
+```
+
+### Centered Hero
+
+```css
+.hero-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 80vh;
+  padding: 64px 24px;
+}
+
+.hero-headline {
+  max-width: 800px;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 1.1;
+}
+
+.hero-subhead {
+  max-width: 600px;
+  margin-top: 24px;
+  font-size: 1.25rem;
+}
+```
 
 ### Full-Bleed Hero
-- Edge-to-edge image or video
-- Text overlaid with scrim/gradient for readability
-- Text positioned: bottom-left (classic), center (impactful), or asymmetric
-- Scroll indicator at bottom center
+
+```css
+.hero-fullbleed {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+}
+
+.hero-content-overlay {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  padding: 64px;
+}
+```
+
+### Bento Hero
+
+```css
+.hero-bento {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  min-height: 90vh;
+  padding: 24px;
+}
+
+.hero-main-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px;
+  border-radius: 24px;
+}
+
+.hero-side-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.hero-side-card {
+  flex: 1;
+  padding: 24px;
+  border-radius: 20px;
+}
+```
 
 ---
 
-## 6. Responsive Hierarchy
+## 5. Responsive Breakpoints
 
-### Breakpoint System
-| Name | Width | Key Changes |
-|------|-------|-------------|
-| Mobile | < 640px | Single column, stacked, full-width buttons |
-| Tablet | 640-1024px | 2 columns, sidebar collapses to hamburger |
-| Desktop | 1024-1440px | Full layout, sidebar visible |
-| Wide | > 1440px | Max-width container centers, more whitespace |
+### Breakpoint Scale
 
-### Responsive Typography
-- Base size: 16px (never smaller for body)
-- Scale ratio: 1.25 (major third) for mobile, 1.333 (perfect fourth) for desktop
-- Fluid type: `clamp(2rem, 5vw + 1rem, 4rem)` for headings
-- Minimum readable: 12px for captions only with strong contrast
+| Breakpoint | Width | Columns |
+|-----------|-------|----------|
+| xs | 0-479px | 1 |
+| sm | 480-767px | 1-2 |
+| md | 768-1023px | 2-3 |
+| lg | 1024-1279px | 3-4 |
+| xl | 1280-1535px | 4 |
+| 2xl | 1536px+ | 4+ |
 
-### Responsive Spacing
-- Halve section spacing on mobile (80px -> 40px)
-- Card padding reduces 24px -> 16px
-- Grid gaps: 24px -> 12px -> 8px
-- Maintain touch targets: minimum 44x44px for buttons
+### Responsive Grid
 
-### Touch Adaptations
-- Hover effects convert to active/pressed states
-- No cursor-follow effects on touch
-- Swipe gestures replace hover-reveal
-- Glassmorphism reduced (performance + contrast)
-- Bottom sheets replace modal dialogs
+```css
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
 
-### Content Prioritization
-- Mobile: show only primary CTA and essential content
-- Tablet: secondary content in collapsible drawers
-- Desktop: full sidebar, all metadata visible
-- Progressive disclosure: hide complexity, reveal on demand
+@media (min-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+}
+```
+
+### Container Queries
+
+```css
+.card-container {
+  container-type: inline-size;
+}
+
+.card-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@container (min-width: 400px) {
+  .card-layout {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+```
+
+---
+
+## 6. Vertical Rhythm
+
+### Grid Baseline
+
+```css
+.vertical-rhythm {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+.vertical-rhythm > * + * {
+  margin-top: 0;
+}
+```
+
+### Section Spacing
+
+| Level | Spacing | Usage |
+|-------|---------|-------|
+| Tight | 24px | Related content |
+| Normal | 48px | Standard sections |
+| Loose | 64px | Major divisions |
+| XL | 96px | Page divisions |
+
+### Content Width
+
+```css
+.content-narrow {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.content-medium {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.content-wide {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+
+.content-full {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+```
+
+---
+
+## 7. Container System
+
+### Max Width Scale
+
+```css
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 0 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 32px;
+  }
+}
+```
+
+### Aspect Ratios
+
+```css
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-portrait {
+  aspect-ratio: 3 / 4;
+}
+
+.aspect-4-3 {
+  aspect-ratio: 4 / 3;
+}
+
+.aspect-21-9 {
+  aspect-ratio: 21 / 9;
+}
+```
+
+---
+
+## 8. Navigation Layout
+
+### Top Nav
+
+```css
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+}
+
+.nav-cta {
+  display: flex;
+  gap: 16px;
+}
+```
+
+### Sidebar Nav
+
+```css
+.sidebar-nav {
+  width: 240px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background: var(--surface-hover);
+}
+```
+
+### Mobile Nav
+
+```css
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+}
+```
+
+---
+
+## 9. Generative Layout Patterns
+
+### Intent-Driven Bento
+
+```css
+.generative-bento {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), 1fr);
+  gap: 16px;
+  transition: grid-template-columns 0.4s ease;
+}
+
+.generative-cell {
+  grid-column: span var(--span, 1);
+  grid-row: span var(--row-span, 1);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+```
+
+### Progressive Disclosure Layout
+
+```css
+.progressive-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.progressive-primary {
+  grid-column: 1 / -1;
+}
+
+.progressive-secondary {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.progressive-layout:has(.progressive-primary:hover) .progressive-secondary {
+  opacity: 1;
+  max-height: 500px;
+}
+```
+
+### Adaptive Card Grid
+
+```css
+.adaptive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.adaptive-card {
+  min-height: 200px;
+  transition: all 0.3s ease;
+}
+```
+
+### Responsive Stack
+
+```css
+.responsive-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .responsive-stack {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .responsive-stack > * {
+    flex: 1;
+  }
+}
+```
+
+### Floating Panel Layout
+
+```css
+.floating-panels {
+  position: relative;
+  min-height: 400px;
+}
+
+.floating-panel {
+  position: absolute;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.panel-main {
+  inset: 0;
+}
+
+.panel-float-1 {
+  top: 20%;
+  right: 10%;
+  transform: scale(0.9);
+  opacity: 0.8;
+}
+
+.panel-float-2 {
+  bottom: 10%;
+  left: 5%;
+  transform: scale(0.85);
+  opacity: 0.6;
+}

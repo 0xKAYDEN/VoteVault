@@ -294,6 +294,48 @@ export const api = {
       apiClient.upload<{ url: string }>('/upload', file, 'image'),
   },
 
+  // Favorites
+  favorites: {
+    getAll: () =>
+      apiClient.get<any[]>('/favorites'),
+    toggle: (serverId: number | string) =>
+      apiClient.post<{ favorited: boolean; message: string }>(`/favorites/${serverId}`),
+    check: (serverId: number | string) =>
+      apiClient.get<{ favorited: boolean }>(`/favorites/${serverId}/check`),
+  },
+
+  // Message Requests
+  messageRequests: {
+    send: (data: { receiverId: string; message: string }) =>
+      apiClient.post<{ message: string }>('/message-requests', data),
+    getAll: () =>
+      apiClient.get<any[]>('/message-requests'),
+    accept: (requestId: number) =>
+      apiClient.post<{ message: string; senderId: string }>(`/message-requests/${requestId}/accept`),
+    decline: (requestId: number) =>
+      apiClient.post<{ message: string }>(`/message-requests/${requestId}/decline`),
+    check: (targetId: string) =>
+      apiClient.get<{ sent: any; received: any }>(`/message-requests/check/${targetId}`),
+  },
+
+  // Group Chats
+  groups: {
+    create: (data: { name: string; memberIds?: string[] }) =>
+      apiClient.post<{ id: number; name: string; message: string }>('/groups', data),
+    getAll: () =>
+      apiClient.get<any[]>('/groups'),
+    getMessages: (groupId: number, params?: { limit?: number; offset?: number }) =>
+      apiClient.get<any[]>(`/groups/${groupId}/messages${params?.offset ? `?offset=${params.offset}` : ''}`),
+    sendMessage: (groupId: number, message: string) =>
+      apiClient.post<any>(`/groups/${groupId}/messages`, { message }),
+    getMembers: (groupId: number) =>
+      apiClient.get<any[]>(`/groups/${groupId}/members`),
+    addMember: (groupId: number, memberId: string) =>
+      apiClient.post<{ message: string }>(`/groups/${groupId}/members`, { memberId }),
+    leave: (groupId: number) =>
+      apiClient.delete<{ message: string }>(`/groups/${groupId}/leave`),
+  },
+
   // Admin
   admin: {
     getStats: () =>
@@ -565,6 +607,9 @@ export const api = {
 
     getThreads: (userId: string) =>
       apiClient.get<any[]>(`/users/${userId}/threads`),
+
+    getMyActivity: (limit?: number) =>
+      apiClient.get<{ activities: any[]; summary: any }>(`/users/me/activity${limit ? `?limit=${limit}` : ''}`),
   },
 
   // User Experience / Reports

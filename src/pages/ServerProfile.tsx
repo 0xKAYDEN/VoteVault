@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit, ShieldCheck, Flag, Youtube, Facebook, Twitter, Twitch, Trophy, UserCircle } from "lucide-react";
+import { Crown, Star, Users, Zap, Globe, MessageCircle, Check, ArrowLeft, Send, TrendingUp, BarChart3, Calendar, ListChecks, Sparkles, Eye, Edit, ShieldCheck, Flag, Youtube, Facebook, Twitter, Twitch, Trophy, UserCircle, Heart } from "lucide-react";
 import { VoteDialog } from "@/components/VoteDialog";
 import { ServerRow } from "@/components/ServerCard";
 import { useAuth } from "@/hooks/useAuth";
@@ -146,6 +146,8 @@ const ServerProfile = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [ownerProfile, setOwnerProfile] = useState<any>(null);
+  const [favorited, setFavorited] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!slug) return;
@@ -162,6 +164,12 @@ const ServerProfile = () => {
         loadReviews(data.id);
         loadStats(data.id);
         api.servers.incrementVisits(data.id);
+        // Check favorite status
+        if (user) {
+          api.favorites.check(data.id)
+            .then(d => setFavorited(d.favorited))
+            .catch(() => {});
+        }
         // Load owner profile
         if (data.owner_id) {
           api.users.getProfile(data.owner_id)
@@ -270,6 +278,20 @@ const ServerProfile = () => {
   const onVoteSuccess = async () => {
     setRecentVoted(true);
     await load();
+  };
+
+  const toggleFavorite = async () => {
+    if (!user || !server) return;
+    setFavLoading(true);
+    try {
+      const data = await api.favorites.toggle(server.id);
+      setFavorited(data.favorited);
+      toast.success(data.favorited ? "Added to favorites" : "Removed from favorites");
+    } catch {
+      toast.error("Failed to update favorites");
+    } finally {
+      setFavLoading(false);
+    }
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -401,6 +423,18 @@ const ServerProfile = () => {
                 }} className="flex-[2] md:flex-none">
                   <Zap className="h-5 w-5" /> Vote Now
                 </Button>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleFavorite}
+                    disabled={favLoading}
+                    title={favorited ? "Remove from favorites" : "Add to favorites"}
+                    className={favorited ? "text-red-400 hover:text-red-300" : "text-muted-foreground hover:text-red-400"}
+                  >
+                    <Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} />
+                  </Button>
+                )}
                 {user && (
                   <ReportButton serverId={server.id} serverName={server.name} />
                 )}

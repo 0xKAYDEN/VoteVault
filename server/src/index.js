@@ -62,6 +62,9 @@ import premiumRoutes from './routes/premiumRoutes.js';
 import threadRoutes from './routes/threadRoutes.js';
 import publicApiRoutes from './routes/publicApiRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import favoriteRoutes from './routes/favoriteRoutes.js';
+import messageRequestRoutes from './routes/messageRequestRoutes.js';
+import groupChatRoutes from './routes/groupChatRoutes.js';
 import { startScheduler } from './utils/scheduler.js';
 
 const app = express();
@@ -221,6 +224,9 @@ app.use('/api/premium', premiumRoutes);
 app.use('/api/threads', threadRoutes);
 app.use('/api/v1', publicApiRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/favorites', favoriteRoutes);
+app.use('/api/message-requests', messageRequestRoutes);
+app.use('/api/groups', groupChatRoutes);
 app.use('/api', healthRoutes);
 
 // Basic health check (legacy endpoint)
@@ -305,6 +311,79 @@ if (process.env.NODE_ENV !== 'test') {
     } catch (e) {
       // Silently ignore — table may not exist yet or already correct
     }
+
+    // Create favorites and message_requests tables
+    try {
+      const pool = (await import('./db.js')).default;
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS server_favorites (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          user_id CHAR(36) NOT NULL,
+          server_id BIGINT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_favorite (user_id, server_id),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS message_requests (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          sender_id CHAR(36) NOT NULL,
+          receiver_id CHAR(36) NOT NULL,
+          message TEXT NOT NULL,
+          status ENUM('pending','accepted','declined') NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_request (sender_id, receiver_id),
+          FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+    } catch (e) {
+      logger.warn('Could not create favorites/message_requests tables:', e.message);
+    }
+
+    // Create group chat tables
+    try {
+      const pool = (await import('./db.js')).default;
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS group_chats (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          created_by CHAR(36) NOT NULL,
+          avatar_url VARCHAR(500) NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS group_chat_members (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          group_id BIGINT UNSIGNED NOT NULL,
+          user_id CHAR(36) NOT NULL,
+          role ENUM('admin','member') NOT NULL DEFAULT 'member',
+          joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_member (group_id, user_id),
+          FOREIGN KEY (group_id) REFERENCES group_chats(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS group_messages (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          group_id BIGINT UNSIGNED NOT NULL,
+          sender_id CHAR(36) NOT NULL,
+          message TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (group_id) REFERENCES group_chats(id) ON DELETE CASCADE,
+          FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+    } catch (e) {
+      logger.warn('Could not create group chat tables:', e.message);
+    }
+
     startScheduler();
   });
 

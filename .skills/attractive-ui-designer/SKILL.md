@@ -85,3 +85,60 @@ Load these files when working on their respective domains:
 - For React/Vue/Angular: translate CSS specs into component props or styled-components
 - Design tools (Figma/Sketch): use exact pixel values and hex codes from reference files
 - When generating images or describing designs to users: use precise terminology from this system
+
+---
+name: attractive-ui-designer
+description: Top-tier 2026 visual design system for creating premium, distinctive, and immersive UI/UX across web, mobile, desktop, and spatial interfaces. Emphasizes unique thematic narratives, rock-solid stable foundations, rich interactive motion & animations, modern/variable/futuristic typography, advanced Liquid Glass, and spatial depth techniques.
+---
+
+# Attractive UI Designer (2026 Enhanced Edition)
+
+Create **breathtaking, unique, production-ready, and spatially aware** interfaces. Every design receives a **distinct thematic identity** while maintaining consistent, stable core systems for usability and scalability.
+
+## Core Design Philosophy
+
+1. **Unique Theme per Project** — Invent a fresh, cohesive visual narrative (e.g., Cyber-Samurai Liquid Glass, Liquid Obsidian Finance, Neon Aurora Industrial, Spatial Clay Luxury).
+2. **Stable Foundational Elements** — 4px spacing base, unified radius logic (12-16px standard, 20-28px for liquid elements), predictable elevation hierarchy, and WCAG-compliant contrast.
+3. **Rich Interactive Motion & Animation** — Magnetic hovers, 3D tilt, fluid morphing, specular shimmers, parallax, and purposeful micro-interactions on every interactive element.
+4. **Modern & Futuristic Typography** — Variable fonts, geometric sans, and cyberpunk families (GRAXE-BEOSA inspired wide/geometric styles) with tight tracking and kinetic effects.
+5. **Liquid Glass + Spatial Depth** — Use advanced Liquid Glass as the primary premium material, enhanced with spatial Z-axis hierarchy and 3D responsiveness.
+
+## Liquid Glass Techniques (2026 Apple-Inspired)
+
+**Liquid Glass** is Apple’s flagship dynamic material introduced at WWDC 2025 (iOS 26, macOS Tahoe, visionOS 26). It evolves static glassmorphism into a living, physically-inspired system with refraction (lensing), adaptive translucency, specular highlights that respond to light/cursor/motion, and fluid morphing.
+
+### Variants
+- **Regular**: Adaptive, versatile, intelligent legibility across contexts.
+- **Clear**: More transparent for media-rich backgrounds; requires localized dimming/scrim for readability.
+
+### Core CSS Recipe (Production-Ready)
+```css
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.10); /* Adjust for dark mode: rgba(0,0,0,0.15-0.22) */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 22px; /* Softer, larger for liquid feel */
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.15),
+    inset 0 6px 24px rgba(255, 255, 255, 0.30); /* Inner specular highlight */
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); /* Springy liquid motion */
+}
+
+/* Animated specular shimmer */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  pointer-events: none;
+  animation: liquid-shimmer 10-14s linear infinite;
+  opacity: 0.65;
+}
+
+@keyframes liquid-shimmer {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(350%); }
+}
